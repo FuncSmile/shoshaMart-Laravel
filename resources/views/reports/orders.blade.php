@@ -80,37 +80,62 @@
             <table>
                 <thead>
                     <tr>
-                        <th width="5%">No</th>
-                        <th width="20%">No. Pesanan</th>
-                        <th width="15%">Tanggal</th>
+                        <th width="3%">No</th>
+                        <th width="15%">No. Pesanan / Item</th>
+                        <th width="12%">Tanggal</th>
                         <th width="20%">Pemesan (User)</th>
                         <th width="15%">Jenis</th>
-                        <th width="10%">Item</th>
-                        <th width="15%">Total (IDR)</th>
+                        <th width="10%">Qty</th>
+                        <th width="10%">Satuan</th>
+                        <th width="15%">Subtotal (IDR)</th>
                     </tr>
                 </thead>
                 <tbody>
-                    @php $grandTotal = 0; $totalItems = 0; @endphp
+                    @php $grandTotal = 0; $totalItemsCount = 0; @endphp
                     @foreach($orders as $index => $order)
                         @php 
                             $grandTotal += $order->total_amount;
-                            $totalItems += $order->items_count;
+                            $totalItemsCount += $order->items_count;
                         @endphp
+                        {{-- Order Header --}}
+                        <tr class="summary" style="background-color: #f9f9f9;">
+                            <td style="text-align: center; vertical-align: top;">{{ $index + 1 }}</td>
+                            <td colspan="4">
+                                <strong>{{ $order->order_number }}</strong> - 
+                                {{ $order->nama_pemesan }} ({{ strtoupper($order->jenis_pesanan) }})
+                            </td>
+                            <td colspan="2" class="text-right" style="font-size: 8pt; color: #666;">
+                                {{ $order->created_at->format('d/m/Y') }}
+                            </td>
+                            <td class="text-right"><strong>{{ number_format($order->total_amount, 0, ',', '.') }}</strong></td>
+                        </tr>
+                        
+                        {{-- Order Items --}}
+                        @foreach($order->items as $itemIndex => $item)
+                            <tr style="font-size: 8.5pt;">
+                                <td></td>
+                                <td colspan="4" style="padding-left: 20px; color: #444;">
+                                    <span style="font-family: monospace; color: #777;">[{{ $item->product->sku ?? 'N/A' }}]</span> 
+                                    {{ $item->product->name ?? 'Unknown item' }}
+                                </td>
+                                <td class="text-right">{{ $item->quantity }}</td>
+                                <td>{{ $item->product->satuan_barang ?? 'PCS' }}</td>
+                                <td class="text-right" style="color: #666;">
+                                    {{ number_format($item->subtotal, 0, ',', '.') }}
+                                </td>
+                            </tr>
+                        @endforeach
+                        
+                        {{-- Spacer --}}
                         <tr>
-                            <td style="text-align: center;">{{ $index + 1 }}</td>
-                            <td>{{ $order->order_number }}</td>
-                            <td>{{ $order->created_at->format('d/m/Y') }}</td>
-                            <td>{{ $order->nama_pemesan }}</td>
-                            <td>{{ strtoupper($order->jenis_pesanan) }}</td>
-                            <td class="text-right">{{ $order->items_count }}</td>
-                            <td class="text-right">{{ number_format($order->total_amount, 0, ',', '.') }}</td>
+                            <td colspan="8" style="border: none; padding: 2px;"></td>
                         </tr>
                     @endforeach
                 </tbody>
                 <tfoot>
                     <tr class="summary">
-                        <td colspan="5" class="text-right">TOTAL</td>
-                        <td class="text-right">{{ $totalItems }}</td>
+                        <td colspan="5" class="text-right">TOTAL PENGADAAN CABANG</td>
+                        <td class="text-right" colspan="2">{{ $totalItemsCount }} ITEM UNIK</td>
                         <td class="text-right">{{ number_format($grandTotal, 0, ',', '.') }}</td>
                     </tr>
                 </tfoot>

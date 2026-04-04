@@ -352,7 +352,19 @@ export function OrderDetailModal({ open, onOpenChange, orderId, onReject }: {
                                                 </div>
                                                 <div>
                                                     <p className="text-[10px] md:text-xs font-bold text-muted-foreground uppercase mb-1 flex items-center gap-1.5"><Phone className="w-3 h-3 text-primary" /> WA</p>
-                                                    <p className="font-bold text-xs md:text-sm tracking-tight line-clamp-1">{order.buyer.phone || '-'}</p>
+                                                    {order.buyer.phone ? (
+                                                        <a 
+                                                            href={`https://wa.me/${order.buyer.phone.replace(/\D/g, '').replace(/^0/, '62')}`} 
+                                                            target="_blank" 
+                                                            rel="noopener noreferrer"
+                                                            className="font-bold text-xs md:text-sm tracking-tight line-clamp-1 text-primary hover:underline flex items-center gap-1"
+                                                            title="Chat via WhatsApp"
+                                                        >
+                                                            {order.buyer.phone}
+                                                        </a>
+                                                    ) : (
+                                                        <p className="font-bold text-xs md:text-sm tracking-tight line-clamp-1">-</p>
+                                                    )}
                                                 </div>
                                             </div>
                                             <div className="pt-5 border-t-2 border-primary/5">

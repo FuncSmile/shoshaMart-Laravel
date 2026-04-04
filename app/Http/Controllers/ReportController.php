@@ -26,7 +26,7 @@ class ReportController extends Controller
         $startDate = $request->input('start_date');
         $endDate = $request->input('end_date');
 
-        $query = Order::with(['buyer:id,username,branch_name', 'items'])
+        $query = Order::with(['buyer:id,username,branch_name', 'items.product:id,name,sku,satuan_barang'])
             ->withCount('items')
             ->where('status', 'APPROVED')
             ->latest();
