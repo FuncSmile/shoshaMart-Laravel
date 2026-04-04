@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Models\User;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 
@@ -9,7 +10,10 @@ class UpdateProductRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return auth()->check() && auth()->user()->isSuperAdmin();
+        /** @var User $user */
+        $user = auth()->user();
+
+        return auth()->check() && ($user->isSuperAdmin() || $user->isWarehouse());
     }
 
     /**
@@ -21,7 +25,7 @@ class UpdateProductRequest extends FormRequest
     {
         return [
             'name' => 'required|string|max:255',
-            'sku' => 'required|string|max:100|unique:products,sku,' . $this->product->id,
+            'sku' => 'required|string|max:100|unique:products,sku,'.$this->product->id,
             'image_url' => 'nullable|url|max:2048',
             'satuan_barang' => 'required|string|max:20',
             'base_price' => 'required|numeric|min:0',

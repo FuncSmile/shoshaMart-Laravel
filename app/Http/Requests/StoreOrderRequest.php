@@ -29,6 +29,7 @@ class StoreOrderRequest extends FormRequest
             'items' => ['required', 'array', 'min:1'],
             'items.*.product_id' => ['required', 'uuid', 'exists:products,id'],
             'items.*.quantity' => ['required', 'integer', 'min:1'],
+            'items.*.price' => ['nullable', 'numeric', 'min:0'],
             'buyer_id' => ['nullable', 'uuid', 'exists:users,id'],
             'created_at' => ['nullable', 'date'],
         ];

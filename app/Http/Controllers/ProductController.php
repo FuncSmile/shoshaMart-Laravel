@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Requests\StoreProductRequest;
 use App\Http\Requests\UpdateProductRequest;
 use App\Http\Resources\ProductResource;
+use App\Http\Resources\StockLogResource;
 use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\Product;
@@ -25,13 +26,15 @@ class ProductController extends Controller
         /** @var User $user */
         $user = auth()->user();
         $isSuperAdmin = $user?->isSuperAdmin();
+        $isWarehouse = $user?->isWarehouse();
+        $canManage = $isSuperAdmin || $isWarehouse;
         $search = $request->input('search');
 
         $query = Product::query()
             ->select(['id', 'name', 'sku', 'image_url', 'satuan_barang', 'stock', 'base_price'])
-            ->with(['tierPrices' => function ($query) use ($user, $isSuperAdmin) {
-                if ($isSuperAdmin) {
-                    return; // SuperAdmin sees all
+            ->with(['tierPrices' => function ($query) use ($user, $canManage) {
+                if ($canManage) {
+                    return; // SuperAdmin & Warehouse sees all
                 }
 
                 if ($user?->tier_id) {
@@ -55,7 +58,8 @@ class ProductController extends Controller
 
         return Inertia::render('products/index', [
             'products' => ProductResource::collection($products),
-            'tiers' => $isSuperAdmin ? Tier::select(['id', 'name'])->get() : [],
+            'tiers' => $canManage ? Tier::select(['id', 'name'])->get() : [],
+            'auth_role' => $user?->role,
             'filters' => $request->only(['search']),
         ]);
     }
@@ -74,7 +78,7 @@ class ProductController extends Controller
     {
         /** @var User $user */
         $user = auth()->user();
-        if (! $user?->isSuperAdmin()) {
+        if (! $user?->isSuperAdmin() && ! $user?->isWarehouse()) {
             abort(403);
         }
 
@@ -199,7 +203,7 @@ class ProductController extends Controller
     {
         /** @var User $user */
         $user = auth()->user();
-        if (! $user?->isSuperAdmin()) {
+        if (! $user?->isSuperAdmin() && ! $user?->isWarehouse()) {
             abort(403);
         }
 
@@ -212,7 +216,7 @@ class ProductController extends Controller
     {
         /** @var User $user */
         $user = auth()->user();
-        if (! $user?->isSuperAdmin()) {
+        if (! $user?->isSuperAdmin() && ! $user?->isWarehouse()) {
             abort(403);
         }
 
@@ -247,7 +251,7 @@ class ProductController extends Controller
     {
         /** @var User $user */
         $user = auth()->user();
-        if (! $user?->isSuperAdmin()) {
+        if (! $user?->isSuperAdmin() && ! $user?->isWarehouse()) {
             abort(403);
         }
 
@@ -297,5 +301,60 @@ class ProductController extends Controller
         fclose($handle);
 
         return back()->with('status', 'Products imported successfully.');
+    }
+
+    public function updateStock(Request $request, Product $product)
+    {
+        /** @var User $user */
+        $user = auth()->user();
+        if (! $user?->isSuperAdmin() && ! $user?->isWarehouse()) {
+            abort(403);
+        }
+
+        $validated = $request->validate([
+            'amount' => 'required|integer|min:1',
+            'type' => 'required|in:add,sub',
+            'reason' => 'required|string|max:255',
+        ]);
+
+        $amount = (int) $validated['amount'];
+        $type = $validated['type'];
+
+        DB::transaction(function () use ($product, $user, $amount, $type, $validated) {
+            $newStock = $type === 'add' ? $product->stock + $amount : $product->stock - $amount;
+
+            if ($newStock < 0) {
+                // Return explicitly to show error in inertia if needed, or just throw
+                abort(422, 'Stock tidak boleh kurang dari nol.');
+            }
+
+            $product->update(['stock' => $newStock]);
+
+            $product->stockLogs()->create([
+                'user_id' => $user->id,
+                'amount' => $type === 'add' ? $amount : -$amount,
+                'type' => $type,
+                'reason' => $validated['reason'],
+            ]);
+        });
+
+        return back()->with('status', 'Stock berhasil diperbarui.');
+    }
+
+    public function stockHistory(Product $product)
+    {
+        /** @var User $user */
+        $user = auth()->user();
+        if (! $user?->isSuperAdmin() && ! $user?->isWarehouse()) {
+            abort(403);
+        }
+
+        $logs = $product->stockLogs()
+            ->with('user')
+            ->latest()
+            ->take(20)
+            ->get();
+
+        return response()->json(StockLogResource::collection($logs));
     }
 }

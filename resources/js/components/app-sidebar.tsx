@@ -1,5 +1,5 @@
 import { Link, usePage, router } from '@inertiajs/react';
-import { BookOpen, FolderGit2, LayoutGrid, ShoppingBag, Users, ShoppingCart } from 'lucide-react';
+import { BookOpen, FolderGit2, LayoutGrid, ShoppingBag, Users, ShoppingCart, History } from 'lucide-react';
 import { useEffect } from 'react';
 import AppLogo from '@/components/app-logo';
 import { NavFooter } from '@/components/nav-footer';
@@ -19,6 +19,7 @@ import { dashboard } from '@/routes';
 import { index as ordersIndex } from '@/routes/orders/index';
 import { index as productsIndex } from '@/routes/products/index';
 import { index as usersIndex } from '@/routes/users/index';
+import { index as stockLogsIndex } from '@/routes/stock-logs/index';
 import type { NavItem } from '@/types';
 
 export function AppSidebar() {
@@ -54,9 +55,23 @@ export function AppSidebar() {
             href: usersIndex.url(),
             icon: Users,
         });
+
+        mainNavItems.push({
+            title: 'Riwayat Stok',
+            href: stockLogsIndex.url(),
+            icon: History,
+        });
     }
 
-    if (user?.role === 'SUPERADMIN' || user?.role === 'ADMIN_TIER') {
+    if (user?.role === 'WAREHOUSE') {
+        mainNavItems.push({
+            title: 'Riwayat Stok',
+            href: stockLogsIndex.url(),
+            icon: History,
+        });
+    }
+
+    if (user?.role === 'SUPERADMIN' || user?.role === 'ADMIN_TIER' || user?.role === 'WAREHOUSE') {
         mainNavItems.push({
             title: 'Kelola Pesanan',
             href: ordersIndex.url(),

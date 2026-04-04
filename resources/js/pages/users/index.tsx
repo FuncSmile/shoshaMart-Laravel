@@ -1,5 +1,5 @@
 import { Head, usePage, useForm, router } from '@inertiajs/react';
-import { Users, UserPlus, Pencil, Trash, Shield, ShoppingBag, Store, Filter, Loader2 } from 'lucide-react';
+import { Users, UserPlus, Pencil, Trash, Shield, ShoppingBag, Store, Filter, Loader2, Box } from 'lucide-react';
 import { useState } from 'react';
 import { useEffect } from 'react';
 import { Badge } from '@/components/ui/badge';
@@ -102,6 +102,7 @@ export default function UserIndex() {
             case 'SUPERADMIN': return <Badge className="bg-purple-500/10 text-purple-600 border-purple-500/20"><Shield className="w-3 h-3 mr-1" /> Superadmin</Badge>;
             case 'ADMIN_TIER': return <Badge className="bg-blue-500/10 text-blue-600 border-blue-500/20"><Store className="w-3 h-3 mr-1" /> Admin Tier</Badge>;
             case 'BUYER': return <Badge className="bg-emerald-500/10 text-emerald-600 border-emerald-500/20"><ShoppingBag className="w-3 h-3 mr-1" /> Buyer</Badge>;
+            case 'WAREHOUSE': return <Badge className="bg-amber-500/10 text-amber-600 border-amber-500/20"><Box className="w-3 h-3 mr-1" /> Warehouse</Badge>;
             default: return <Badge variant="outline">{role}</Badge>;
         }
     };
@@ -178,6 +179,7 @@ export default function UserIndex() {
                                             <SelectContent className="rounded-xl border-none shadow-2xl">
                                                 <SelectItem value="SUPERADMIN">Superadmin</SelectItem>
                                                 <SelectItem value="ADMIN_TIER">Admin Tier</SelectItem>
+                                                <SelectItem value="WAREHOUSE">Warehouse</SelectItem>
                                                 <SelectItem value="BUYER">Buyer</SelectItem>
                                             </SelectContent>
                                         </Select>
@@ -246,6 +248,7 @@ export default function UserIndex() {
                                     <SelectItem value="ALL">Semua Pengguna</SelectItem>
                                     <SelectItem value="SUPERADMIN">Superadmin</SelectItem>
                                     <SelectItem value="ADMIN_TIER">Admin Tier</SelectItem>
+                                    <SelectItem value="WAREHOUSE">Warehouse</SelectItem>
                                     <SelectItem value="BUYER">Buyer</SelectItem>
                                 </SelectContent>
                             </Select>

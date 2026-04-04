@@ -5,6 +5,7 @@ use App\Http\Controllers\OrderController;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\ReportController;
+use App\Http\Controllers\StockLogController;
 use App\Http\Controllers\UserController;
 use Illuminate\Support\Facades\Route;
 
@@ -21,6 +22,9 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/products-template', [ProductController::class, 'downloadTemplate'])->name('products.download-template');
     Route::post('/products-import', [ProductController::class, 'import'])->name('products.import');
     Route::post('/products/reorder', [ProductController::class, 'reorder'])->name('products.reorder');
+    Route::post('/products/{product}/stock', [ProductController::class, 'updateStock'])->name('products.update-stock');
+    Route::get('/stock-logs', [StockLogController::class, 'index'])->name('stock-logs.index');
+    Route::get('/api/products/{product}/stock-history', [ProductController::class, 'stockHistory'])->name('api.products.stock-history');
 
     // Orders
     Route::get('/orders', [OrderController::class, 'index'])->name('orders.index');

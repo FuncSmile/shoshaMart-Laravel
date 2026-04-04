@@ -65,14 +65,17 @@ class OrderService
             }
         }])->whereIn('id', $productIds)->get()->keyBy('id');
 
-        return DB::transaction(function () use ($targetUser, $items, $products, $namaPemesan, $jenisPesanan, $createdAt) {
+        return DB::transaction(function () use ($user, $targetUser, $items, $products, $namaPemesan, $jenisPesanan, $createdAt) {
             $totalAmount = 0;
             $orderItemsData = [];
-
             foreach ($items as $item) {
                 $product = $products->get($item['product_id']);
                 if ($product) {
-                    $price = $this->pricingService->getPriceForTier($product, $targetUser->tier_id);
+                    $manualPrice = $item['price'] ?? null;
+                    $price = ($user->isSuperAdmin() && ! is_null($manualPrice))
+                        ? (float) $manualPrice
+                        : $this->pricingService->getPriceForTier($product, $targetUser->tier_id);
+
                     $quantity = $item['quantity'] ?? 1;
                     $subtotal = $price * $quantity;
                     $totalAmount += $subtotal;
@@ -131,11 +134,14 @@ class OrderService
 
             $totalAmount = 0;
             $syncedItems = [];
-
             foreach ($items as $item) {
                 $product = $products->get($item['product_id']);
                 if ($product) {
-                    $price = $this->pricingService->getPriceForTier($product, $buyer->tier_id);
+                    $manualPrice = $item['price'] ?? null;
+                    $price = ($actor->isSuperAdmin() && ! is_null($manualPrice))
+                        ? (float) $manualPrice
+                        : $this->pricingService->getPriceForTier($product, $buyer->tier_id);
+
                     $quantity = $item['quantity'] ?? 1;
                     $subtotal = $price * $quantity;
                     $totalAmount += $subtotal;

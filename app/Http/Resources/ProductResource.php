@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources;
 
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -14,9 +15,9 @@ class ProductResource extends JsonResource
      */
     public function toArray(Request $request): array
     {
-        /** @var \App\Models\User $user */
+        /** @var User $user */
         $user = auth()->user();
-        $isSuperAdmin = $user?->isSuperAdmin();
+        $canSeeDetailedPrices = $user?->isSuperAdmin() || $user?->isWarehouse();
 
         return [
             'id' => $this->id,
@@ -25,9 +26,9 @@ class ProductResource extends JsonResource
             'image_url' => $this->image_url,
             'satuan_barang' => $this->satuan_barang,
             'stock' => $this->stock,
-            'base_price' => $this->when($isSuperAdmin, $this->base_price),
-            'display_price' => $this->display_price, // Assumes this is appended or calculated before
-            'tier_prices' => $this->when($isSuperAdmin, $this->tierPrices),
+            'base_price' => $this->when($canSeeDetailedPrices, $this->base_price),
+            'display_price' => $this->display_price,
+            'tier_prices' => $this->when($canSeeDetailedPrices, $this->tierPrices),
         ];
     }
 }

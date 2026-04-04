@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Models\User;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 
@@ -9,7 +10,10 @@ class StoreProductRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return auth()->check() && auth()->user()->isSuperAdmin();
+        /** @var User $user */
+        $user = auth()->user();
+
+        return auth()->check() && ($user->isSuperAdmin() || $user->isWarehouse());
     }
 
     /**

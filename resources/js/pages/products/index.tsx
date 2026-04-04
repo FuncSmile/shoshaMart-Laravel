@@ -17,7 +17,9 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { Head, usePage, useForm, router } from '@inertiajs/react';
-import { ShoppingCart, Loader2, Plus, Pencil, Trash, Trash2, Package, Info, Upload, Download, FileSpreadsheet, Clock, GripVertical, Check } from 'lucide-react';
+import { format } from 'date-fns';
+import { id as localeId } from 'date-fns/locale';
+import { ArrowUpDown, Box, Check, ChevronDown, Download, Filter, Grid, LayoutGrid, List, Loader2, MoreVertical, Package, Plus, Search, Table, Trash, Upload, X, Archive, Clock, History as HistoryIcon, ArrowUpCircle, ArrowDownCircle, UserCircle, BookOpen, FolderGit2, ShoppingBag, Users, ShoppingCart, Pencil, Trash2, GripVertical, Info, FileSpreadsheet } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import OrderController from '@/actions/App/Http/Controllers/OrderController';
 import ProductController from '@/actions/App/Http/Controllers/ProductController';
@@ -52,6 +54,7 @@ import {
 } from "@/components/ui/sheet";
 import { cn } from '@/lib/utils';
 import { index as productsIndex } from '@/routes/products/index';
+import { stockHistory as getStockHistory } from '@/routes/api/products/index';
 
 interface Tier {
     id: string;
@@ -148,14 +151,11 @@ function SortableProductItem({ product }: { product: Product }) {
 }
 
 export default function ProductsIndex() {
-    const { auth, products, tiers, filters } = usePage().props as unknown as {
-        auth: UserAuth,
-        products: PaginatedProducts,
-        tiers: Tier[],
-        filters: { search?: string }
-    };
-    const isSuperAdmin = auth.user.role === 'SUPERADMIN';
-    const isBuyer = auth.user.role === 'BUYER';
+    const { products, auth_role, filters, buyers, tiers } = usePage().props as any;
+    const isSuperAdmin = auth_role === 'SUPERADMIN';
+    const isWarehouse = auth_role === 'WAREHOUSE';
+    const isBuyer = auth_role === 'BUYER';
+    const canManageProducts = isSuperAdmin || isWarehouse;
 
     const [search, setSearch] = useState(filters.search || '');
     const [cartRegistry, setCartRegistry] = useState<Record<string, Product>>(() => {
@@ -184,15 +184,17 @@ export default function ProductsIndex() {
 
     // --- Buyer Cart Logic ---
     const cart = useForm<{
-        items: { product_id: string; quantity: number }[];
+        items: { product_id: string; quantity: number; price?: number }[];
         nama_pemesan: string;
         jenis_pesanan: string;
         created_at: string;
+        buyer_id?: string;
     }>({
         items: (typeof window !== 'undefined' ? JSON.parse(localStorage.getItem('shosha_cart_items') || '[]') : []),
         nama_pemesan: '',
         jenis_pesanan: 'awal bulan',
         created_at: new Date().toISOString().split('T')[0],
+        buyer_id: '',
     });
 
     // --- Persistence Logic ---
@@ -230,8 +232,19 @@ export default function ProductsIndex() {
                 item.product_id === product_id ? { ...item, quantity } : item
             ));
         } else {
-            cart.setData('items', [...cart.data.items, { product_id, quantity }]);
+            const prod = products.data.find(p => p.id === product_id);
+            cart.setData('items', [...cart.data.items, { 
+                product_id, 
+                quantity, 
+                price: prod?.display_price 
+            }]);
         }
+    };
+
+    const handlePriceChange = (product_id: string, price: number) => {
+        cart.setData('items', cart.data.items.map(item =>
+            item.product_id === product_id ? { ...item, price: Math.max(0, price) } : item
+        ));
     };
 
     const getQuantity = (product_id: string) => {
@@ -241,8 +254,9 @@ export default function ProductsIndex() {
     const totalCartItems = cart.data.items.reduce((acc, item) => acc + item.quantity, 0);
     const totalCartPrice = cart.data.items.reduce((acc, item) => {
         const prod = cartRegistry[item.product_id] || products.data.find(p => p.id === item.product_id);
+        const price = item.price ?? prod?.display_price ?? 0;
 
-        return acc + (prod ? prod.display_price * item.quantity : 0);
+        return acc + (price * item.quantity);
     }, 0);
 
     const submitOrder = (e: React.FormEvent) => {
@@ -270,6 +284,37 @@ export default function ProductsIndex() {
     const [isReorderModalOpen, setIsReorderModalOpen] = useState(false);
     const [reorderItems, setReorderItems] = useState<Product[]>([]);
     const [isSavingReorder, setIsSavingReorder] = useState(false);
+
+    // --- Stock Management Logic ---
+    const [isStockModalOpen, setIsStockModalOpen] = useState(false);
+    const [stockProduct, setStockProduct] = useState<Product | null>(null);
+    const [activeStockTab, setActiveStockTab] = useState<'edit' | 'history'>('edit');
+    const [productHistory, setProductHistory] = useState<any[]>([]);
+    const [isLoadingHistory, setIsLoadingHistory] = useState(false);
+    const stockForm = useForm({
+        amount: 1,
+        type: 'add' as 'add' | 'sub',
+        reason: 'Baru',
+    });
+
+    const openStockModal = (product: Product) => {
+        setStockProduct(product);
+        setActiveStockTab('edit');
+        setIsStockModalOpen(true);
+    };
+
+    const handleStockSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!stockProduct) return;
+
+        stockForm.post(ProductController.updateStock.url(stockProduct.id), {
+            onSuccess: () => {
+                setIsStockModalOpen(false);
+                stockForm.reset();
+            },
+            preserveScroll: true,
+        });
+    };
 
     // --- Reordering Logic ---
     const sensors = useSensors(
@@ -306,6 +351,20 @@ export default function ProductsIndex() {
             setReorderItems(data);
         } catch (error) {
             console.error("Failed to fetch products for reordering:", error);
+        }
+    };
+
+    const fetchHistory = async () => {
+        if (!stockProduct) return;
+        setIsLoadingHistory(true);
+        try {
+            const response = await fetch(getStockHistory.url({ product: stockProduct.id }));
+            const data = await response.json();
+            setProductHistory(data);
+        } catch (error) {
+            console.error('Failed to fetch history:', error);
+        } finally {
+            setIsLoadingHistory(false);
         }
     };
 
@@ -457,7 +516,7 @@ return true;
                         placeholder="Cari nama atau SKU..."
                         className="md:w-80"
                     />
-                    {isSuperAdmin && (
+                    {canManageProducts && (
                         <div className="flex items-center gap-2">
                             <Button
                                 variant="outline"
@@ -484,8 +543,11 @@ return true;
             <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                 {products.data.map((product) => (
                     <Card key={product.id} className="group flex flex-col relative overflow-hidden transition-all hover:shadow-xl border-sidebar-border/70 dark:border-sidebar-border">
-                        {isSuperAdmin && (
+                        {canManageProducts && (
                             <div className="absolute top-2 right-2 flex gap-1 z-10 opacity-0 group-hover:opacity-100 transition-opacity">
+                                <Button variant="secondary" size="icon" className="h-8 w-8 rounded-full shadow-md bg-amber-500 hover:bg-amber-600 text-white border-none" onClick={() => openStockModal(product)} title="Kelola Stock">
+                                    <Archive className="h-4 w-4" />
+                                </Button>
                                 <Button variant="secondary" size="icon" className="h-8 w-8 rounded-full shadow-md" onClick={() => openEditModal(product)}>
                                     <Pencil className="h-4 w-4" />
                                 </Button>
@@ -541,7 +603,7 @@ return true;
                                 </Badge>
                             </div>
 
-                            {isSuperAdmin && product.base_price !== undefined && (
+                            {canManageProducts && product.base_price !== undefined && (
                                 <div className="rounded-lg bg-primary/5 p-3 space-y-2 border border-primary/10">
                                     <div className="flex justify-between text-xs items-center">
                                         <span className="text-muted-foreground">Harga Modal:</span>
@@ -566,7 +628,7 @@ return true;
                             )}
                         </CardContent>
 
-                        {isBuyer && (
+                        {(isBuyer || isSuperAdmin) && (
                             <CardFooter className="pt-3 pb-4 bg-muted/20 border-t items-center justify-between">
                                 <div className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Jumlah</div>
                                 <div className="flex items-center gap-1">
@@ -604,7 +666,7 @@ return true;
             <Pagination links={products.meta.links} className="pb-24" />
 
             {/* Floating Cart Button */}
-            {isBuyer && totalCartItems > 0 && !isCartSheetOpen && (
+            {(isBuyer || isSuperAdmin) && totalCartItems > 0 && !isCartSheetOpen && (
                 <div className="fixed bottom-6 left-6 md:left-auto md:right-6 z-40 flex items-center justify-center animate-in zoom-in-50 duration-300">
                     <Button
                         size="icon"
@@ -667,6 +729,20 @@ return null;
                                                     <p className="font-black text-primary mt-1">{formatCurrency(prod.display_price)}</p>
                                                 </div>
                                                 <div className="flex flex-col items-end gap-2">
+                                                    {isSuperAdmin && (
+                                                        <div className="flex flex-col items-end gap-1 mb-1">
+                                                            <div className="text-[8px] font-black uppercase tracking-widest text-primary">Harga Custom</div>
+                                                            <div className="relative">
+                                                                <span className="absolute left-2 top-1.5 text-[8px] font-black text-muted-foreground/50">Rp</span>
+                                                                <Input 
+                                                                    type="number"
+                                                                    className="h-7 w-24 pl-6 text-[10px] font-black rounded-lg border-primary/20 focus:border-primary"
+                                                                    value={item.price ?? 0}
+                                                                    onChange={(e) => handlePriceChange(item.product_id, parseFloat(e.target.value) || 0)}
+                                                                />
+                                                            </div>
+                                                        </div>
+                                                    )}
                                                     <div className="flex items-center gap-1 bg-muted/30 rounded-full p-1 h-8">
                                                         <Button
                                                             variant="ghost"
@@ -760,19 +836,59 @@ return null;
 }
 
                                             return (
-                                                <div key={item.product_id} className="flex justify-between items-center text-[11px] bg-background/50 p-2 rounded-lg border">
+                                                <div key={item.product_id} className="flex justify-between items-center text-[11px] bg-background/50 p-2 rounded-lg border group">
                                                     <div className="flex-1 min-w-0 pr-2">
                                                         <p className="font-black truncate uppercase tracking-tight text-foreground/80">{prod.name}</p>
-                                                        <p className="text-[9px] text-muted-foreground font-bold">{item.quantity} {prod.satuan_barang} x {formatCurrency(prod.display_price)}</p>
+                                                        <div className="flex items-center gap-2">
+                                                            <p className="text-[9px] text-muted-foreground font-bold">{item.quantity} {prod.satuan_barang} x </p>
+                                                            {isSuperAdmin ? (
+                                                                <div className="relative">
+                                                                    <span className="absolute left-1.5 top-0.5 text-[7px] font-black text-muted-foreground/40">Rp</span>
+                                                                    <Input 
+                                                                        type="number"
+                                                                        className="h-5 w-20 pl-5 pr-1 text-[9px] font-black rounded-md border-primary/20 focus:border-primary p-0 bg-transparent"
+                                                                        value={item.price ?? 0}
+                                                                        onChange={(e) => handlePriceChange(item.product_id, parseFloat(e.target.value) || 0)}
+                                                                    />
+                                                                </div>
+                                                            ) : (
+                                                                <span className="text-[9px] text-muted-foreground font-bold">{formatCurrency(prod.display_price)}</span>
+                                                            )}
+                                                        </div>
                                                     </div>
                                                     <div className="font-black text-primary">
-                                                        {formatCurrency(prod.display_price * item.quantity)}
+                                                        {formatCurrency((item.price ?? prod.display_price) * item.quantity)}
                                                     </div>
                                                 </div>
                                             );
                                         })}
                                     </div>
                                 </div>
+
+                                {isSuperAdmin && (
+                                    <div className="space-y-2 p-4 rounded-2xl bg-amber-500/5 border-2 border-amber-500/10">
+                                        <Label htmlFor="buyer_id" className="text-[10px] font-black uppercase tracking-widest text-amber-600 flex items-center gap-2">
+                                            <Users className="h-3 w-3" />
+                                            Pilih Buyer (Admin Only)
+                                        </Label>
+                                        <Select
+                                            value={cart.data.buyer_id}
+                                            onValueChange={val => cart.setData('buyer_id', val)}
+                                        >
+                                            <SelectTrigger className="h-11 rounded-xl border-2 border-amber-500/20 font-bold focus:ring-amber-500/20 bg-white">
+                                                <SelectValue placeholder="Pilih Cabang / Buyer" />
+                                            </SelectTrigger>
+                                            <SelectContent className="rounded-xl border-2">
+                                                {buyers.map((buyer: any) => (
+                                                    <SelectItem key={buyer.id} value={buyer.id} className="font-bold uppercase text-[10px] tracking-widest text-amber-600">
+                                                        {buyer.branch_name || buyer.username}
+                                                    </SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                        {cart.errors.buyer_id && <p className="text-destructive text-[10px] font-bold italic">{cart.errors.buyer_id}</p>}
+                                    </div>
+                                )}
 
                                 <div className="space-y-2">
                                     <Label htmlFor="nama_pemesan" className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Nama Pemesan (Wajib)</Label>
@@ -1151,6 +1267,218 @@ return null;
                             SIMPAN URUTAN BARU
                         </Button>
                     </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* --- Manage Stock Modal --- */}
+            <Dialog open={isStockModalOpen} onOpenChange={setIsStockModalOpen}>
+                <DialogContent className="max-w-md p-0 overflow-hidden border-none shadow-2xl rounded-3xl group/modal focus-visible:outline-none">
+                    <DialogHeader className="p-8 pb-4 bg-gradient-to-br from-amber-500 to-orange-600 text-white relative">
+                        <div className="absolute top-0 right-0 p-8 opacity-10">
+                            <Archive className="h-24 w-24 rotate-12" />
+                        </div>
+                        <div className="flex items-center justify-between relative z-10 w-full">
+                            <div className="flex items-center gap-4">
+                                <div className="p-3 bg-white/20 rounded-2xl backdrop-blur-md shadow-inner">
+                                    <Archive className="h-6 w-6" />
+                                </div>
+                                <div className="flex flex-col">
+                                    <DialogTitle className="text-2xl font-[1000] italic uppercase tracking-tighter leading-none">Kelola Stok</DialogTitle>
+                                    <DialogDescription className="text-white/80 font-black uppercase tracking-widest text-[10px] mt-1 line-clamp-1 border-t border-white/20 pt-1">
+                                        {stockProduct?.name}
+                                    </DialogDescription>
+                                </div>
+                            </div>
+
+                            <div className="flex bg-black/10 rounded-full p-1 self-start">
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className={cn(
+                                        "h-8 rounded-full px-4 text-[10px] font-black uppercase tracking-widest transition-all",
+                                        activeStockTab === 'edit' ? "bg-white text-orange-600 shadow-sm" : "text-white/70 hover:text-white"
+                                    )}
+                                    onClick={() => setActiveStockTab('edit')}
+                                >
+                                    Update
+                                </Button>
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className={cn(
+                                        "h-8 rounded-full px-4 text-[10px] font-black uppercase tracking-widest transition-all",
+                                        activeStockTab === 'history' ? "bg-white text-orange-600 shadow-sm" : "text-white/70 hover:text-white"
+                                    )}
+                                    onClick={() => setActiveStockTab('history')}
+                                >
+                                    Riwayat
+                                </Button>
+                            </div>
+                        </div>
+                    </DialogHeader>
+
+                    {activeStockTab === 'edit' ? (
+                        <form onSubmit={handleStockSubmit} className="p-8 space-y-6 bg-background relative">
+                            <div className="space-y-5">
+                                <div className="flex p-1.5 bg-muted/50 rounded-[1.25rem] border-2 border-muted">
+                                    <Button
+                                        type="button"
+                                        variant={stockForm.data.type === 'add' ? 'default' : 'ghost'}
+                                        className={cn(
+                                            "flex-1 rounded-xl h-12 font-black uppercase tracking-widest text-xs italic transition-all duration-300",
+                                            stockForm.data.type === 'add' ? "bg-emerald-600 shadow-lg shadow-emerald-500/20 text-white scale-100" : "opacity-50 scale-95 hover:opacity-100"
+                                        )}
+                                        onClick={() => stockForm.setData('type', 'add')}
+                                    >
+                                        Tambah
+                                    </Button>
+                                    <Button
+                                        type="button"
+                                        variant={stockForm.data.type === 'sub' ? 'default' : 'ghost'}
+                                        className={cn(
+                                            "flex-1 rounded-xl h-12 font-black uppercase tracking-widest text-xs italic transition-all duration-300",
+                                            stockForm.data.type === 'sub' ? "bg-rose-600 shadow-lg shadow-rose-500/20 text-white scale-100" : "opacity-50 scale-95 hover:opacity-100"
+                                        )}
+                                        onClick={() => stockForm.setData('type', 'sub')}
+                                    >
+                                        Kurang
+                                    </Button>
+                                </div>
+
+                                <div className="space-y-2 group/input">
+                                    <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground/60 ml-2 group-focus-within/input:text-primary transition-colors">Jumlah Unit</Label>
+                                    <div className="relative">
+                                        <Input
+                                            type="number"
+                                            min="1"
+                                            value={stockForm.data.amount}
+                                            onChange={e => stockForm.setData('amount', parseInt(e.target.value) || 0)}
+                                            className="h-14 rounded-2xl border-2 border-muted focus-visible:ring-primary focus-visible:border-primary font-black text-xl px-6 transition-all shadow-sm"
+                                            required
+                                        />
+                                        <div className="absolute right-6 top-1/2 -translate-y-1/2 text-[10px] font-black uppercase tracking-widest text-muted-foreground/40 italic">
+                                            {stockProduct?.satuan_barang}
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="space-y-2">
+                                    <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground/60 ml-2">Alasan Perubahan</Label>
+                                    <Select
+                                        value={stockForm.data.reason}
+                                        onValueChange={val => stockForm.setData('reason', val)}
+                                    >
+                                        <SelectTrigger className="h-14 rounded-2xl border-2 border-muted font-black uppercase text-xs tracking-widest px-6 shadow-sm focus:ring-primary focus:border-primary">
+                                            <SelectValue placeholder="Pilih alasan..." />
+                                        </SelectTrigger>
+                                        <SelectContent className="rounded-2xl border-2 shadow-2xl p-2 h-auto max-h-60">
+                                            <SelectItem value="Baru" className="font-black uppercase text-[10px] tracking-widest rounded-xl p-3 focus:bg-emerald-50 focus:text-emerald-600 cursor-pointer">Baru / Restock</SelectItem>
+                                            <SelectItem value="Rusak" className="font-black uppercase text-[10px] tracking-widest rounded-xl p-3 focus:bg-rose-50 focus:text-rose-600 cursor-pointer">Barang Rusak</SelectItem>
+                                            <SelectItem value="Expired" className="font-black uppercase text-[10px] tracking-widest rounded-xl p-3 focus:bg-amber-50 focus:text-amber-600 cursor-pointer">Kedaluwarsa</SelectItem>
+                                            <SelectItem value="Cacat" className="font-black uppercase text-[10px] tracking-widest rounded-xl p-3 focus:bg-orange-50 focus:text-orange-600 cursor-pointer">Cacat Produksi</SelectItem>
+                                            <SelectItem value="Lainnya" className="font-black uppercase text-[10px] tracking-widest rounded-xl p-3 focus:bg-muted cursor-pointer">Lainnya...</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+
+                                {['Baru', 'Rusak', 'Expired', 'Cacat'].indexOf(stockForm.data.reason) === -1 && (
+                                    <div className="space-y-2 animate-in fade-in slide-in-from-top-2 duration-300">
+                                        <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground/60 ml-2">Keterangan Tambahan</Label>
+                                        <Input
+                                            placeholder="Tuliskan alasan detail..."
+                                            value={['Baru', 'Rusak', 'Expired', 'Cacat'].includes(stockForm.data.reason) ? '' : stockForm.data.reason}
+                                            onChange={e => stockForm.setData('reason', e.target.value)}
+                                            className="h-14 rounded-2xl border-2 border-primary/20 italic font-bold px-6 shadow-sm focus-visible:ring-primary focus-visible:border-primary"
+                                            required
+                                        />
+                                    </div>
+                                )}
+                            </div>
+
+                            <DialogFooter className="pt-4 flex flex-col sm:flex-row gap-3">
+                                <Button
+                                    type="button"
+                                    variant="ghost"
+                                    onClick={() => setIsStockModalOpen(false)}
+                                    className="rounded-full h-14 px-8 font-black italic uppercase text-[10px] tracking-widest opacity-40 hover:opacity-100 transition-opacity"
+                                >
+                                    Batal
+                                </Button>
+                                <Button
+                                    type="submit"
+                                    disabled={stockForm.processing}
+                                    className={cn(
+                                        "flex-1 rounded-full h-14 px-10 text-white font-[1000] italic shadow-2xl text-xs uppercase tracking-[0.1em] gap-3 transition-all active:scale-95",
+                                        stockForm.data.type === 'add'
+                                            ? "bg-emerald-600 hover:bg-emerald-700 shadow-emerald-500/30"
+                                            : "bg-rose-600 hover:bg-rose-700 shadow-rose-500/30"
+                                    )}
+                                >
+                                    {stockForm.processing ? (
+                                        <Loader2 className="h-5 w-5 animate-spin" />
+                                    ) : (
+                                        <Archive className="h-5 w-5" />
+                                    )}
+                                    KONFIRMASI STOK
+                                </Button>
+                            </DialogFooter>
+                        </form>
+                    ) : (
+                        <div className="p-0 bg-background max-h-[500px] flex flex-col">
+                            <div className="p-8 pb-0 overflow-y-auto flex-1 custom-scrollbar">
+                                <div className="space-y-4 mb-8">
+                                    {isLoadingHistory ? (
+                                        <div className="flex flex-col items-center justify-center py-12 gap-4">
+                                            <Loader2 className="h-8 w-8 animate-spin text-primary/40" />
+                                            <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground animate-pulse italic">Memuat Riwayat...</p>
+                                        </div>
+                                    ) : productHistory.length > 0 ? (
+                                        productHistory.map((log) => (
+                                            <div key={log.id} className="p-4 rounded-2xl bg-muted/30 border border-sidebar-border/50 group/log hover:bg-muted/50 transition-colors">
+                                                <div className="flex items-center justify-between mb-2">
+                                                    <div className="flex items-center gap-2">
+                                                        <div className={cn(
+                                                            "h-6 px-2 rounded-lg flex items-center gap-1 text-[8px] font-black uppercase tracking-widest border",
+                                                            log.type === 'add' ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/20" : "bg-rose-500/10 text-rose-600 border-rose-500/20"
+                                                        )}>
+                                                            {log.type === 'add' ? <ArrowUpCircle className="w-2 h-2" /> : <ArrowDownCircle className="w-2 h-2" />}
+                                                            {log.type === 'add' ? 'Masuk' : 'Keluar'}
+                                                        </div>
+                                                        <span className="text-[10px] font-black italic text-muted-foreground/50">{format(new Date(log.created_at), 'H:m dd MMM', { locale: localeId })}</span>
+                                                    </div>
+                                                    <div className="text-sm font-black italic">
+                                                        {log.type === 'add' ? '+' : ''}{log.amount} <span className="text-[8px] uppercase tracking-widest opacity-50">{stockProduct?.satuan_barang}</span>
+                                                    </div>
+                                                </div>
+                                                <div className="flex items-center gap-3">
+                                                    <div className="flex items-center gap-1.5">
+                                                        <UserCircle className="w-3 h-3 text-primary/40" />
+                                                        <span className="text-[9px] font-black uppercase tracking-widest text-foreground/70">{log.user.username}</span>
+                                                    </div>
+                                                    <div className="h-1 w-1 rounded-full bg-border" />
+                                                    <span className="text-[9px] font-medium text-muted-foreground italic leading-none truncate max-w-[150px]">"{log.reason}"</span>
+                                                </div>
+                                            </div>
+                                        ))
+                                    ) : (
+                                        <div className="flex flex-col items-center justify-center py-20 gap-4 opacity-30 text-center px-10">
+                                            <HistoryIcon className="h-12 w-12" />
+                                            <p className="text-[10px] font-black uppercase tracking-[0.2em] italic">Belum Ada Riwayat Stok Tercatat Untuk Produk Ini</p>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                            <div className="p-8 pt-4 bg-muted/30 border-t flex justify-center">
+                                <Button
+                                    variant="ghost"
+                                    onClick={() => setActiveStockTab('edit')}
+                                    className="rounded-full h-10 px-8 text-[10px] font-black uppercase tracking-widest gap-2 hover:bg-background"
+                                >
+                                    <Archive className="w-3 h-3" /> Kembali ke Manajemen
+                                </Button>
+                            </div>
+                        </div>
+                    )}
                 </DialogContent>
             </Dialog>
         </div>
