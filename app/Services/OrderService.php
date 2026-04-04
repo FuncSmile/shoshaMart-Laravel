@@ -19,10 +19,50 @@ class OrderService
     public function updateOrderStatus(Order $order, string $status, User $actor, ?string $reason = null): Order
     {
         return DB::transaction(function () use ($order, $status, $actor, $reason) {
+            $oldStatus = $order->status;
+
             $order->update([
                 'status' => $status,
                 'rejection_reason' => $reason,
             ]);
+
+            // Deduct stock on approval
+            if ($status === 'APPROVED' && $oldStatus !== 'APPROVED') {
+                $order->loadMissing('items.product');
+                foreach ($order->items as $item) {
+                    /** @var Product $product */
+                    $product = $item->product;
+
+                    if ($product) {
+                        $product->decrement('stock', $item->quantity);
+                        $product->stockLogs()->create([
+                            'user_id' => $actor->id,
+                            'amount' => -$item->quantity,
+                            'type' => 'sub',
+                            'reason' => "Persetujuan Pesanan #{$order->order_number}",
+                        ]);
+                    }
+                }
+            }
+
+            // Restore stock if cancelled after approval
+            if ($status === 'CANCELLED' && $oldStatus === 'APPROVED') {
+                $order->loadMissing('items.product');
+                foreach ($order->items as $item) {
+                    /** @var Product $product */
+                    $product = $item->product;
+
+                    if ($product) {
+                        $product->increment('stock', $item->quantity);
+                        $product->stockLogs()->create([
+                            'user_id' => $actor->id,
+                            'amount' => $item->quantity,
+                            'type' => 'add',
+                            'reason' => "Pembatalan Pesanan Disetujui #{$order->order_number}",
+                        ]);
+                    }
+                }
+            }
 
             $action = match ($status) {
                 'APPROVED' => 'menyetujui',

@@ -107,6 +107,10 @@ class OrderPolicy
      */
     public function cancel(User $user, Order $order): bool
     {
+        if ($user->isSuperAdmin()) {
+            return in_array($order->status, ['PENDING', 'APPROVED', 'UNPAID']);
+        }
+
         return $user->id === $order->buyer_id && in_array($order->status, ['PENDING', 'UNPAID']);
     }
 

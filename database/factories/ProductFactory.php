@@ -23,6 +23,7 @@ class ProductFactory extends Factory
             'sku' => strtoupper(fake()->unique()->bothify('??###')),
             'base_price' => fake()->numberBetween(1000, 100000),
             'stock' => fake()->numberBetween(0, 100),
+            'satuan_barang' => fake()->randomElement(['PCS', 'BOX', 'UNIT', 'LITER']),
         ];
     }
 }
