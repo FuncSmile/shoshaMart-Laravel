@@ -151,7 +151,7 @@ function SortableProductItem({ product }: { product: Product }) {
 }
 
 export default function ProductsIndex() {
-    const { products, auth_role, filters, buyers, tiers } = usePage().props as any;
+    const { products, auth_role, filters, tiers = [] } = usePage().props as any;
     const isSuperAdmin = auth_role === 'SUPERADMIN';
     const isWarehouse = auth_role === 'WAREHOUSE';
     const isBuyer = auth_role === 'BUYER';
@@ -183,18 +183,11 @@ export default function ProductsIndex() {
     }, [search, filters.search]);
 
     // --- Buyer Cart Logic ---
-    const cart = useForm<{
-        items: { product_id: string; quantity: number; price?: number }[];
-        nama_pemesan: string;
-        jenis_pesanan: string;
-        created_at: string;
-        buyer_id?: string;
-    }>({
+    const cart = useForm({
         items: (typeof window !== 'undefined' ? JSON.parse(localStorage.getItem('shosha_cart_items') || '[]') : []),
         nama_pemesan: '',
         jenis_pesanan: 'awal bulan',
         created_at: new Date().toISOString().split('T')[0],
-        buyer_id: '',
     });
 
     // --- Persistence Logic ---
@@ -232,19 +225,8 @@ export default function ProductsIndex() {
                 item.product_id === product_id ? { ...item, quantity } : item
             ));
         } else {
-            const prod = products.data.find(p => p.id === product_id);
-            cart.setData('items', [...cart.data.items, { 
-                product_id, 
-                quantity, 
-                price: prod?.display_price 
-            }]);
+            cart.setData('items', [...cart.data.items, { product_id, quantity }]);
         }
-    };
-
-    const handlePriceChange = (product_id: string, price: number) => {
-        cart.setData('items', cart.data.items.map(item =>
-            item.product_id === product_id ? { ...item, price: Math.max(0, price) } : item
-        ));
     };
 
     const getQuantity = (product_id: string) => {
@@ -628,7 +610,7 @@ return true;
                             )}
                         </CardContent>
 
-                        {(isBuyer || isSuperAdmin) && (
+                        {isBuyer && (
                             <CardFooter className="pt-3 pb-4 bg-muted/20 border-t items-center justify-between">
                                 <div className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Jumlah</div>
                                 <div className="flex items-center gap-1">
@@ -666,7 +648,7 @@ return true;
             <Pagination links={products.meta.links} className="pb-24" />
 
             {/* Floating Cart Button */}
-            {(isBuyer || isSuperAdmin) && totalCartItems > 0 && !isCartSheetOpen && (
+            {isBuyer && totalCartItems > 0 && !isCartSheetOpen && (
                 <div className="fixed bottom-6 left-6 md:left-auto md:right-6 z-40 flex items-center justify-center animate-in zoom-in-50 duration-300">
                     <Button
                         size="icon"
@@ -729,20 +711,6 @@ return null;
                                                     <p className="font-black text-primary mt-1">{formatCurrency(prod.display_price)}</p>
                                                 </div>
                                                 <div className="flex flex-col items-end gap-2">
-                                                    {isSuperAdmin && (
-                                                        <div className="flex flex-col items-end gap-1 mb-1">
-                                                            <div className="text-[8px] font-black uppercase tracking-widest text-primary">Harga Custom</div>
-                                                            <div className="relative">
-                                                                <span className="absolute left-2 top-1.5 text-[8px] font-black text-muted-foreground/50">Rp</span>
-                                                                <Input 
-                                                                    type="number"
-                                                                    className="h-7 w-24 pl-6 text-[10px] font-black rounded-lg border-primary/20 focus:border-primary"
-                                                                    value={item.price ?? 0}
-                                                                    onChange={(e) => handlePriceChange(item.product_id, parseFloat(e.target.value) || 0)}
-                                                                />
-                                                            </div>
-                                                        </div>
-                                                    )}
                                                     <div className="flex items-center gap-1 bg-muted/30 rounded-full p-1 h-8">
                                                         <Button
                                                             variant="ghost"
@@ -841,19 +809,7 @@ return null;
                                                         <p className="font-black truncate uppercase tracking-tight text-foreground/80">{prod.name}</p>
                                                         <div className="flex items-center gap-2">
                                                             <p className="text-[9px] text-muted-foreground font-bold">{item.quantity} {prod.satuan_barang} x </p>
-                                                            {isSuperAdmin ? (
-                                                                <div className="relative">
-                                                                    <span className="absolute left-1.5 top-0.5 text-[7px] font-black text-muted-foreground/40">Rp</span>
-                                                                    <Input 
-                                                                        type="number"
-                                                                        className="h-5 w-20 pl-5 pr-1 text-[9px] font-black rounded-md border-primary/20 focus:border-primary p-0 bg-transparent"
-                                                                        value={item.price ?? 0}
-                                                                        onChange={(e) => handlePriceChange(item.product_id, parseFloat(e.target.value) || 0)}
-                                                                    />
-                                                                </div>
-                                                            ) : (
-                                                                <span className="text-[9px] text-muted-foreground font-bold">{formatCurrency(prod.display_price)}</span>
-                                                            )}
+                                                            <span className="text-[9px] text-muted-foreground font-bold">{formatCurrency(prod.display_price)}</span>
                                                         </div>
                                                     </div>
                                                     <div className="font-black text-primary">
@@ -865,30 +821,6 @@ return null;
                                     </div>
                                 </div>
 
-                                {isSuperAdmin && (
-                                    <div className="space-y-2 p-4 rounded-2xl bg-amber-500/5 border-2 border-amber-500/10">
-                                        <Label htmlFor="buyer_id" className="text-[10px] font-black uppercase tracking-widest text-amber-600 flex items-center gap-2">
-                                            <Users className="h-3 w-3" />
-                                            Pilih Buyer (Admin Only)
-                                        </Label>
-                                        <Select
-                                            value={cart.data.buyer_id}
-                                            onValueChange={val => cart.setData('buyer_id', val)}
-                                        >
-                                            <SelectTrigger className="h-11 rounded-xl border-2 border-amber-500/20 font-bold focus:ring-amber-500/20 bg-white">
-                                                <SelectValue placeholder="Pilih Cabang / Buyer" />
-                                            </SelectTrigger>
-                                            <SelectContent className="rounded-xl border-2">
-                                                {buyers.map((buyer: any) => (
-                                                    <SelectItem key={buyer.id} value={buyer.id} className="font-bold uppercase text-[10px] tracking-widest text-amber-600">
-                                                        {buyer.branch_name || buyer.username}
-                                                    </SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                        </Select>
-                                        {cart.errors.buyer_id && <p className="text-destructive text-[10px] font-bold italic">{cart.errors.buyer_id}</p>}
-                                    </div>
-                                )}
 
                                 <div className="space-y-2">
                                     <Label htmlFor="nama_pemesan" className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Nama Pemesan (Wajib)</Label>

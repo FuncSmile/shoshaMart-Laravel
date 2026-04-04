@@ -21,12 +21,5 @@ export default defineConfig({
         wayfinder({
             formVariants: true,
         }),
-    ],
-    // TAMBAHKAN BLOK SERVER INI
-    server: {
-        host: '0.0.0.0', // Mengizinkan akses dari luar localhost
-        hmr: {
-            host: '192.168.1.8', // WAJIB GANTI: Isi dengan IP Address LAN laptop/PC kamu saat ini
-        },
-    },
+    ]
 });

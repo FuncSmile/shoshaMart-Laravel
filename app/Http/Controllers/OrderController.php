@@ -77,7 +77,7 @@ class OrderController extends Controller
             'orders' => OrderResource::collection($orders),
             'auth_role' => $user->role,
             'filters' => $request->only(['search', 'status', 'jenis_pesanan']),
-            'buyers' => $user->isSuperAdmin() ? User::where('role', 'BUYER')->select(['id', 'username', 'branch_name'])->get() : [],
+            'buyers' => $user->isSuperAdmin() ? User::where('role', 'BUYER')->select(['id', 'username', 'branch_name', 'tier_id'])->get() : [],
             'tiers' => Tier::select(['id', 'name'])->get(),
             'availableTypes' => Order::distinct()->whereNotNull('jenis_pesanan')->pluck('jenis_pesanan'),
         ]);

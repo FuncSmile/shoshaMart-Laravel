@@ -66,7 +66,8 @@ class ProductController extends Controller
 
     public function apiIndex()
     {
-        $products = Product::select(['id', 'name', 'sku', 'base_price', 'satuan_barang', 'image_url'])
+        $products = Product::with('tierPrices:id,product_id,tier_id,price')
+            ->select(['id', 'name', 'sku', 'base_price', 'satuan_barang', 'image_url'])
             ->orderBy('position', 'asc')
             ->orderBy('name', 'asc')
             ->get();

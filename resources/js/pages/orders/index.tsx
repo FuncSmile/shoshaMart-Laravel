@@ -145,14 +145,37 @@ export default function OrderIndex() {
     const [productSearchQuery, setProductSearchQuery] = useState('');
     const filteredSearchProducts = useMemo(() => {
         if (!productSearchQuery) {
-return [];
-}
+            return [];
+        }
 
         return availableProducts.filter(p =>
             p.name.toLowerCase().includes(productSearchQuery.toLowerCase()) ||
             p.sku.toLowerCase().includes(productSearchQuery.toLowerCase())
         ).slice(0, 5);
     }, [productSearchQuery, availableProducts]);
+
+    const getProductTierPrice = (product: any, tierId: string | null) => {
+        if (!tierId) return product.base_price;
+        const tierPrice = product.tier_prices?.find((tp: any) => tp.tier_id === tierId);
+        return tierPrice ? tierPrice.price : product.base_price;
+    };
+
+    // Update prices when buyer changes
+    useEffect(() => {
+        if (createOrderForm.data.buyer_id) {
+            const buyer = buyers.find((b: any) => b.id === createOrderForm.data.buyer_id);
+            if (buyer && createOrderForm.data.items.length > 0) {
+                const updatedItems = createOrderForm.data.items.map(item => {
+                    const product = availableProducts.find(p => p.id === item.product_id);
+                    if (product) {
+                        return { ...item, price: getProductTierPrice(product, buyer.tier_id) };
+                    }
+                    return item;
+                });
+                createOrderForm.setData('items', updatedItems);
+            }
+        }
+    }, [createOrderForm.data.buyer_id, availableProducts]);
 
     return (
         <div className="flex flex-1 flex-col gap-8 p-6 md:p-8 lg:p-10 w-full max-w-7xl mx-auto animate-in fade-in slide-in-from-bottom-4 duration-700">
@@ -756,16 +779,7 @@ url.searchParams.append('end_date', reportData.end_date);
                                 <div className="space-y-5">
                                     <div className="space-y-2">
                                         <Label className="text-[10px] font-black uppercase tracking-widest text-primary/60 px-1">Cabang Tujuan</Label>
-                                        <Select value={createOrderForm.data.buyer_id} onValueChange={(val) => {
-                                            createOrderForm.setData('buyer_id', val);
-
-                                            // Reset items if buyer changes to ensure correct pricing (though we use base_price for now)
-                                            if (createOrderForm.data.items.length > 0) {
-                                                if (confirm('Mengubah cabang akan mengosongkan keranjang untuk penyesuaian harga. Lanjutkan?')) {
-                                                    createOrderForm.setData('items', []);
-                                                }
-                                            }
-                                        }}>
+                                        <Select value={createOrderForm.data.buyer_id} onValueChange={(val) => createOrderForm.setData('buyer_id', val)}>
                                             <SelectTrigger className="h-14 rounded-2xl border-2 border-primary/5 bg-background shadow-sm font-bold focus:ring-emerald-500/20 focus:border-emerald-500/30">
                                                 <SelectValue placeholder="Pilih Cabang..." />
                                             </SelectTrigger>
@@ -863,6 +877,10 @@ url.searchParams.append('end_date', reportData.end_date);
                                                     onClick={() => {
                                                         const existing = createOrderForm.data.items.find(i => i.product_id === p.id);
 
+                                                        const buyer = buyers.find((b: any) => b.id === createOrderForm.data.buyer_id);
+                                                        const tierId = buyer ? buyer.tier_id : null;
+                                                        const price = getProductTierPrice(p, tierId);
+
                                                         if (existing) {
                                                             createOrderForm.setData('items', createOrderForm.data.items.map(i =>
                                                                 i.product_id === p.id ? { ...i, quantity: i.quantity + 1 } : i
@@ -870,7 +888,7 @@ url.searchParams.append('end_date', reportData.end_date);
                                                         } else {
                                                             createOrderForm.setData('items', [
                                                                 ...createOrderForm.data.items,
-                                                                { product_id: p.id, quantity: 1, name: p.name, sku: p.sku, price: p.base_price }
+                                                                { product_id: p.id, quantity: 1, name: p.name, sku: p.sku, price: price }
                                                             ]);
                                                         }
 
@@ -885,7 +903,9 @@ url.searchParams.append('end_date', reportData.end_date);
                                                             <p className="font-[1000] text-base md:text-lg text-foreground tracking-tighter line-clamp-1 uppercase italic leading-none mb-1.5">{p.name}</p>
                                                             <div className="flex items-center gap-3">
                                                                 <Badge variant="outline" className="text-[9px] font-black uppercase tracking-widest border-emerald-500/20 text-emerald-600">SKU: {p.sku}</Badge>
-                                                                <p className="text-[10px] font-black text-muted-foreground italic uppercase">{formatCurrency(p.base_price)}</p>
+                                                                <p className="text-[10px] font-black text-muted-foreground italic uppercase">
+                                                                    {formatCurrency(getProductTierPrice(p, buyers.find((b: any) => b.id === createOrderForm.data.buyer_id)?.tier_id))}
+                                                                </p>
                                                             </div>
                                                         </div>
                                                     </div>
@@ -926,11 +946,27 @@ url.searchParams.append('end_date', reportData.end_date);
                                                     <div className="h-16 w-16 rounded-[1.5rem] bg-emerald-600 flex items-center justify-center text-white shadow-xl flex-shrink-0 group-hover:rotate-6 transition-transform">
                                                         <Package className="w-8 h-8" />
                                                     </div>
-                                                    <div className="min-w-0">
+                                                    <div className="min-w-0 flex-1">
                                                         <p className="font-[1000] text-base md:text-lg tracking-tighter text-foreground line-clamp-1 truncate uppercase italic leading-none mb-2">{item.name}</p>
-                                                        <div className="flex flex-wrap gap-2">
-                                                            <Badge variant="outline" className="text-[9px] uppercase font-black tracking-widest border-emerald-500/20 text-emerald-600">SKU: {item.sku}</Badge>
-                                                            <p className="text-[10px] font-black text-muted-foreground opacity-60 uppercase italic">{formatCurrency(item.price || 0)} / unit</p>
+                                                        <div className="flex flex-wrap items-center gap-3">
+                                                            <Badge variant="outline" className="text-[9px] uppercase font-black tracking-widest border-emerald-500/20 text-emerald-600 shrink-0">SKU: {item.sku}</Badge>
+                                                            <div className="flex items-center gap-2 bg-emerald-500/5 rounded-lg px-2 py-1 border border-emerald-500/10">
+                                                                <span className="text-[10px] font-black text-emerald-600 uppercase tracking-widest italic shrink-0">Harga/Unit:</span>
+                                                                <div className="relative">
+                                                                    <span className="absolute left-1.5 top-1/2 -translate-y-1/2 text-[10px] font-black text-emerald-600 opacity-40">Rp</span>
+                                                                    <Input 
+                                                                        type="number"
+                                                                        className="h-7 w-28 pl-6 pr-2 text-[11px] font-[1000] rounded-md border-emerald-500/20 focus:border-emerald-500/40 bg-white shadow-sm"
+                                                                        value={item.price || 0}
+                                                                        onChange={(e) => {
+                                                                            const val = parseFloat(e.target.value) || 0;
+                                                                            createOrderForm.setData('items', createOrderForm.data.items.map((it, i) =>
+                                                                                i === idx ? { ...it, price: val } : it
+                                                                            ));
+                                                                        }}
+                                                                    />
+                                                                </div>
+                                                            </div>
                                                         </div>
                                                     </div>
                                                 </div>
@@ -1000,7 +1036,7 @@ url.searchParams.append('end_date', reportData.end_date);
                         <div className="hidden md:flex flex-col">
                             <p className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.3em] mb-1 opacity-50">INFORMASI FINAL</p>
                             <p className="text-sm font-bold italic text-foreground tracking-tight">
-                                {createOrderForm.data.items.length} Item Produk terpilih untuk diproses.
+                                {createOrderForm.data.items.length} Item Produk terpilih. Total Estimasi: <span className="text-emerald-600 font-[1000]">{formatCurrency(previewTotal)}</span>
                             </p>
                         </div>
 
