@@ -35,9 +35,10 @@ interface Order {
 }
 
 export default function OrderIndex() {
-    const { orders, auth_role, filters, buyers, tiers } = usePage().props as any;
+    const { orders, auth_role, filters, buyers, tiers, availableTypes } = usePage().props as any;
     const [searchQuery, setSearchQuery] = useState(filters.search || '');
     const [statusFilter, setStatusFilter] = useState(filters.status || 'ALL');
+    const [jenisPesananFilter, setJenisPesananFilter] = useState(filters.jenis_pesanan || 'ALL');
     const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
     const [isDetailOpen, setIsDetailOpen] = useState(false);
     const [rejectingOrder, setRejectingOrder] = useState<Order | null>(null);
@@ -74,8 +75,14 @@ export default function OrderIndex() {
 
     useEffect(() => {
         const timer = setTimeout(() => {
-            if (searchQuery !== (filters.search || '') || statusFilter !== (filters.status || 'ALL')) {
-                router.get(ordersIndex.url(), { search: searchQuery, status: statusFilter }, {
+            if (searchQuery !== (filters.search || '') || 
+                statusFilter !== (filters.status || 'ALL') || 
+                jenisPesananFilter !== (filters.jenis_pesanan || 'ALL')) {
+                router.get(ordersIndex.url(), { 
+                    search: searchQuery, 
+                    status: statusFilter,
+                    jenis_pesanan: jenisPesananFilter 
+                }, {
                     preserveState: true,
                     preserveScroll: true,
                     replace: true
@@ -84,7 +91,7 @@ export default function OrderIndex() {
         }, 500);
 
         return () => clearTimeout(timer);
-    }, [searchQuery, statusFilter, filters.search, filters.status]);
+    }, [searchQuery, statusFilter, jenisPesananFilter, filters.search, filters.status, filters.jenis_pesanan]);
 
     const formatCurrency = (amount: number) => {
         return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(amount);
@@ -207,22 +214,42 @@ return [];
                             placeholder="Cari ID Pesanan atau Buyer..."
                             className="md:w-96"
                         />
-                        <div className="flex items-center gap-2">
-                            <Badge variant="outline" className="h-10 px-4 rounded-full border-2 border-primary/20 bg-primary/5 flex items-center gap-2">
-                                <Filter className="h-4 w-4 text-primary" />
-                                <span className="text-primary font-bold">Status:</span>
-                            </Badge>
-                            <Select value={statusFilter} onValueChange={setStatusFilter}>
-                                <SelectTrigger className="w-40 rounded-full h-10 border-2 border-primary/20 font-bold text-xs">
-                                    <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent className="rounded-xl border-none shadow-2xl">
-                                    <SelectItem value="ALL">Semua Pesanan</SelectItem>
-                                    <SelectItem value="PENDING">Menunggu (Pending)</SelectItem>
-                                    <SelectItem value="APPROVED">Disetujui (Approved)</SelectItem>
-                                    <SelectItem value="REJECTED">Ditolak (Rejected)</SelectItem>
-                                </SelectContent>
-                            </Select>
+                        <div className="flex flex-wrap items-center gap-3">
+                            <div className="flex items-center gap-2">
+                                <Badge variant="outline" className="h-10 px-4 rounded-full border-2 border-primary/20 bg-primary/5 flex items-center gap-2">
+                                    <Filter className="h-4 w-4 text-primary" />
+                                    <span className="text-primary font-bold">Status:</span>
+                                </Badge>
+                                <Select value={statusFilter} onValueChange={setStatusFilter}>
+                                    <SelectTrigger className="w-40 rounded-full h-10 border-2 border-primary/20 font-bold text-xs">
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent className="rounded-xl border-none shadow-2xl">
+                                        <SelectItem value="ALL">Semua Status</SelectItem>
+                                        <SelectItem value="PENDING">Menunggu (Pending)</SelectItem>
+                                        <SelectItem value="APPROVED">Disetujui (Approved)</SelectItem>
+                                        <SelectItem value="REJECTED">Ditolak (Rejected)</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+
+                            <div className="flex items-center gap-2">
+                                <Badge variant="outline" className="h-10 px-4 rounded-full border-2 border-primary/20 bg-primary/5 flex items-center gap-2">
+                                    <Filter className="h-4 w-4 text-primary" />
+                                    <span className="text-primary font-bold">Jenis:</span>
+                                </Badge>
+                                <Select value={jenisPesananFilter} onValueChange={setJenisPesananFilter}>
+                                    <SelectTrigger className="w-44 rounded-full h-10 border-2 border-primary/20 font-bold text-xs">
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent className="rounded-xl border-none shadow-2xl">
+                                        <SelectItem value="ALL">Semua Jenis</SelectItem>
+                                        {(availableTypes as string[]).map(type => (
+                                            <SelectItem key={type} value={type} className="capitalize">{type}</SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
                         </div>
                     </div>
                 </CardHeader>
@@ -231,7 +258,8 @@ return [];
                         <table className="w-full text-sm text-left">
                             <thead className="bg-muted/20 text-[10px] uppercase font-black tracking-widest text-muted-foreground">
                                 <tr>
-                                    <th className="px-8 py-4">Informasi Pesanan</th>
+                                    <th className="px-8 py-4">ID & Jenis Pesanan</th>
+                                    <th className="px-6 py-4">Cabang</th>
                                     <th className="px-6 py-4">Buyer & Tier</th>
                                     <th className="px-6 py-4">Total Tagihan</th>
                                     <th className="px-6 py-4 text-center">Status</th>
@@ -248,15 +276,19 @@ return [];
                                                 </div>
                                                 <div>
                                                     <div className="font-black text-foreground text-sm flex items-center gap-1 uppercase tracking-tight">#{order.id.slice(0, 8)}</div>
-                                                    <div className="flex flex-col gap-0.5">
-                                                        <div className="text-[10px] font-black text-primary italic uppercase tracking-wider truncate max-w-[150px]">
-                                                            {order.nama_pemesan}
-                                                        </div>
-                                                        <div className="text-[9px] text-muted-foreground font-medium italic">
-                                                            {new Date(order.created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })} • {order.jenis_pesanan}
-                                                        </div>
+                                                    <Badge className="text-[10px] bg-primary/10 text-primary border-primary/20 font-black italic uppercase tracking-wider py-0.5 px-2 rounded-[0.4rem]">
+                                                        {order.jenis_pesanan}
+                                                    </Badge>
+                                                    <div className="text-[9px] text-muted-foreground font-medium italic mt-1">
+                                                        {new Date(order.created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })}
                                                     </div>
                                                 </div>
+                                            </div>
+                                        </td>
+                                        <td className="px-6 py-6">
+                                            <div className="flex flex-col">
+                                                <span className="font-black text-sm tracking-tighter uppercase italic text-foreground">{order.buyer.branch_name || 'Bukan Cabang'}</span>
+                                                <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest opacity-60">LOKASI PENGIRIMAN</span>
                                             </div>
                                         </td>
                                         <td className="px-6 py-6">
