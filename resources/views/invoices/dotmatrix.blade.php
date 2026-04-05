@@ -1,74 +1,89 @@
 <!DOCTYPE html>
 <html>
+
 <head>
-    <meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     <title>Invoice {{ $order->order_number }}</title>
     <style>
         @page {
             margin: 0;
         }
+
         body {
             font-family: 'Courier', monospace;
             font-size: 10pt;
             margin: 0.5cm;
             color: #000;
         }
+
         .header {
             text-align: center;
-            margin-bottom: 15px;
+            margin-bottom: 0px;
             border-bottom: 1px dashed #000;
-            padding-bottom: 10px;
+            padding-bottom: 5px;
         }
+
         .info-table {
             width: 100%;
             margin-bottom: 15px;
-            font-size: 9pt;
+            font-size: 11pt;
         }
+
         .info-table td {
             vertical-align: top;
         }
+
         .items-table {
             width: 100%;
             border-collapse: collapse;
             margin-bottom: 15px;
             font-size: 12pt;
         }
+
         .items-table th {
             border-bottom: 1px dashed #000;
             border-top: 1px dashed #000;
             padding: 8px 0;
         }
+
         .items-table td {
             padding: 6px 0;
         }
+
         .text-left {
             text-align: left;
         }
+
         .text-center {
             text-align: center;
         }
+
         .text-right {
             text-align: right;
         }
+
         .footer {
             margin-top: 20px;
             font-size: 8pt;
         }
+
         .signatures {
             width: 100%;
             margin-top: 30px;
             font-size: 9pt;
         }
+
         .signatures td {
             text-align: center;
             width: 50%;
         }
     </style>
 </head>
+
 <body>
     @php
-        $itemChunks = $order->items->chunk(8);
-        $totalChunks = count($itemChunks);
+    $itemChunks = $order->items->chunk(8);
+    $totalChunks = count($itemChunks);
     @endphp
 
     @foreach($itemChunks as $chunkIndex => $items)
@@ -153,4 +168,5 @@
     </div>
     @endforeach
 </body>
+
 </html>

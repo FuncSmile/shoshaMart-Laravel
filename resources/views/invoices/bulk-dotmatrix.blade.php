@@ -30,13 +30,13 @@
             text-align: center;
             margin-bottom: 0px;
             border-bottom: 1px dashed #000;
-            padding-bottom: 10px;
+            padding-bottom: 0px;
         }
 
         .info-table {
             width: 100%;
             margin-bottom: 15px;
-            font-size: 9pt;
+            font-size: 12pt;
         }
 
         .info-table td {
