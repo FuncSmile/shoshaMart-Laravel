@@ -1,10 +1,10 @@
 <table>
     <thead>
         <tr>
-            <th colspan="7" style="font-weight: bold; font-size: 14pt; text-align: center;">LAPORAN PEMESANAN SHOSHA MART</th>
+            <th colspan="9" style="font-weight: bold; font-size: 14pt; text-align: center;">LAPORAN PEMESANAN SHOSHA MART</th>
         </tr>
         <tr>
-            <th colspan="7" style="font-weight: bold; text-align: center;">CABANG: {{ strtoupper($branchName) }}</th>
+            <th colspan="9" style="font-weight: bold; text-align: center;">CABANG: {{ strtoupper($branchName) }}</th>
         </tr>
         <tr></tr>
         <tr style="background-color: #f2f2f2;">
@@ -16,6 +16,7 @@
             <th style="font-weight: bold; width: 10px; border: thin solid #000;">Qty</th>
             <th style="font-weight: bold; width: 10px; border: thin solid #000;">Satuan</th>
             <th style="font-weight: bold; width: 15px; border: thin solid #000;">Subtotal (IDR)</th>
+            <th style="font-weight: bold; width: 15px; border: thin solid #000;">Keterangan</th>
         </tr>
     </thead>
     <tbody>
@@ -37,6 +38,9 @@
                 <td style="font-weight: bold; text-align: right; border: thin solid #000;">
                     {{ $order->total_amount }}
                 </td>
+                <td style="font-weight: bold; text-align: center; border: thin solid #000;">
+                    {{ in_array(strtolower($order->status), ['paid', 'verified']) ? 'LUNAS' : '-' }}
+                </td>
             </tr>
             
             {{-- Order Items --}}
@@ -51,12 +55,13 @@
                     <td style="text-align: right; border: thin solid #000;">
                         {{ $item->subtotal }}
                     </td>
+                    <td style="border: thin solid #000;"></td>
                 </tr>
             @endforeach
             
             {{-- Spacer Row --}}
             <tr>
-                <td colspan="8"></td>
+                <td colspan="9"></td>
             </tr>
         @endforeach
     </tbody>
@@ -65,6 +70,7 @@
             <td colspan="5" style="font-weight: bold; text-align: right; border: thin solid #000;">TOTAL PENGADAAN CABANG</td>
             <td colspan="2" style="font-weight: bold; text-align: right; border: thin solid #000;">{{ $totalItemsCount }} ITEM</td>
             <td style="font-weight: bold; text-align: right; border: thin solid #000;">{{ $grandTotal }}</td>
+            <td style="border: thin solid #000;"></td>
         </tr>
     </tfoot>
 </table>

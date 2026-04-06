@@ -1,5 +1,5 @@
 import { Head, usePage, router, useForm } from '@inertiajs/react';
-import { ShoppingCart, Eye, CheckCircle, XCircle, Filter, Loader2, ArrowRight, Package, User, Clock, AlertCircle, Trash2, Search, Minus, Plus, Tag, Calendar } from 'lucide-react';
+import { ShoppingCart, Eye, CheckCircle, XCircle, Filter, Loader2, ArrowRight, Package, User, Clock, AlertCircle, Trash2, Search, Minus, Plus, Tag, Calendar, CreditCard } from 'lucide-react';
 import { useState, useEffect, useMemo } from 'react';
 import { OrderDetailModal } from '@/components/order-detail-modal';
 import { Badge } from '@/components/ui/badge';
@@ -147,6 +147,12 @@ export default function OrderIndex() {
                     reset();
                 },
             });
+        }
+    };
+
+    const handleMarkAsPaid = (id: string) => {
+        if (confirm('Tandai pesanan ini sebagai LUNAS secara manual?')) {
+            router.post(`/orders/${id}/mark-as-paid`);
         }
     };
 
@@ -437,6 +443,18 @@ export default function OrderIndex() {
                                                             className="rounded-full h-8 text-[10px] font-black uppercase text-destructive hover:bg-destructive/10"
                                                         >
                                                             Batal
+                                                        </Button>
+                                                    )}
+
+                                                    {order.status === 'APPROVED' && (auth_role === 'SUPERADMIN' || auth_role === 'ADMIN_TIER') && (
+                                                        <Button
+                                                            variant="default"
+                                                            size="sm"
+                                                            onClick={() => handleMarkAsPaid(order.id)}
+                                                            className="rounded-full h-8 text-[10px] font-black uppercase bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg shadow-emerald-500/20"
+                                                        >
+                                                            <CreditCard className="h-3 w-3 mr-1" />
+                                                            Bayar Lunas
                                                         </Button>
                                                     )}
 

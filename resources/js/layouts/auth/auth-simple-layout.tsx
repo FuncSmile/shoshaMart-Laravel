@@ -1,6 +1,7 @@
 import { Link } from '@inertiajs/react';
 import { home } from '@/routes';
 import type { AuthLayoutProps } from '@/types';
+import { PwaInstallPrompt } from '@/components/pwa-install-prompt';
 
 export default function AuthSimpleLayout({
     children,
@@ -36,6 +37,7 @@ export default function AuthSimpleLayout({
                     {children}
                 </div>
             </div>
+            <PwaInstallPrompt />
         </div>
     );
 }

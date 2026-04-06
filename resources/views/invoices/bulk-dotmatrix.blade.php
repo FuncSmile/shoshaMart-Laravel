@@ -7,36 +7,40 @@
     <style>
         @page {
             margin: 0;
+            size: 612pt 396pt;
         }
 
         body {
             font-family: 'Courier', monospace;
             font-size: 10pt;
             margin: 0;
+            padding: 0;
             color: #000;
         }
 
         .invoice-page {
             padding: 0.5cm;
-            page-break-after: always;
-            height: 100%;
+            position: relative;
+            box-sizing: border-box;
+            /* Remove height: 100% to prevent overflow-triggered blank pages */
         }
 
-        .invoice-page:last-child {
-            page-break-after: avoid;
+        .page-break {
+            page-break-after: always;
         }
 
         .header {
             text-align: center;
-            margin-bottom: 0px;
+            margin-bottom: 5px;
             border-bottom: 1px dashed #000;
-            padding-bottom: 0px;
+            padding-bottom: 5px;
         }
 
+        /* ... existing styles ... */
         .info-table {
             width: 100%;
-            margin-bottom: 15px;
-            font-size: 12pt;
+            margin-bottom: 10px;
+            font-size: 11pt;
         }
 
         .info-table td {
@@ -46,18 +50,18 @@
         .items-table {
             width: 100%;
             border-collapse: collapse;
-            margin-bottom: 15px;
-            font-size: 12pt;
+            margin-bottom: 10px;
+            font-size: 11pt;
         }
 
         .items-table th {
             border-bottom: 1px dashed #000;
             border-top: 1px dashed #000;
-            padding: 8px 0;
+            padding: 5px 0;
         }
 
         .items-table td {
-            padding: 6px 0;
+            padding: 4px 0;
         }
 
         .text-left {
@@ -73,13 +77,13 @@
         }
 
         .footer {
-            margin-top: 20px;
+            margin-top: 10px;
             font-size: 8pt;
         }
 
         .signatures {
             width: 100%;
-            margin-top: 15px;
+            margin-top: 10px;
             font-size: 9pt;
         }
 
@@ -98,7 +102,7 @@
     @endphp
 
     @foreach($itemChunks as $chunkIndex => $items)
-    <div class="invoice-page" style="page-break-after: {{ (($chunkIndex + 1) < $totalChunks) || !$loop->parent->last ? 'always' : 'avoid' }};">
+    <div class="invoice-page">
         <div class="header">
             <h2 style="margin: 0; letter-spacing: 2px;">SHOSHA MART</h2>
             @if($totalChunks > 1)
@@ -136,7 +140,7 @@
             <tbody>
                 @foreach($items as $item)
                 <tr>
-                    <td class="text-left">{{ ($loop->parent->index * 8) + $loop->iteration }}</td>
+                    <td class="text-left">{{ ($chunkIndex * 8) + $loop->iteration }}</td>
                     <td class="text-left">{{ $item->product->name }}</td>
                     <td class="text-right">{{ number_format($item->price, 0, ',', '.') }}</td>
                     <td class="text-center">{{ $item->quantity }}</td>
@@ -154,7 +158,7 @@
             @else
             <tfoot>
                 <tr>
-                    <td colspan="5" class="text-center" style="border-top: 1px dashed #000; padding-top: 10px; font-size: 8pt; italic">
+                    <td colspan="5" class="text-center" style="border-top: 1px dashed #000; padding-top: 10px; font-size: 8pt; font-style: italic;">
                         Bersambung ke halaman berikutnya...
                     </td>
                 </tr>
@@ -177,6 +181,10 @@
         </table>
         @endif
     </div>
+
+    @if (!(($loop->last) && ($loop->parent->last)))
+    <div class="page-break"></div>
+    @endif
     @endforeach
     @endforeach
 </body>

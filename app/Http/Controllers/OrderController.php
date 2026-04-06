@@ -258,4 +258,20 @@ class OrderController extends Controller
 
         return response()->json(['message' => 'Status cetak diperbarui']);
     }
+
+    public function markAsPaid(Request $request, Order $order)
+    {
+        if (! $request->user()->isSuperAdmin() && $request->user()->role !== 'ADMIN_TIER') {
+            abort(403);
+        }
+
+        $order->update(['status' => Order::STATUS_PAID]);
+
+        $order->histories()->create([
+            'user_id' => $request->user()->id,
+            'message' => 'Pesanan ditandai lunas secara manual oleh '.$request->user()->username,
+        ]);
+
+        return back()->with('message', 'Pesanan telah ditandai lunas.');
+    }
 }

@@ -38,13 +38,30 @@
     <link rel="icon" type="image/png" sizes="32x32" href="/favicon_io/favicon-32x32.png">
     <link rel="icon" type="image/png" sizes="16x16" href="/favicon_io/favicon-16x16.png">
     <link rel="apple-touch-icon" href="/favicon_io/apple-touch-icon.png">
-    <link rel="manifest" href="/favicon_io/site.webmanifest">
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#059669">
 
     <link rel="preconnect" href="https://fonts.bunny.net">
     <link href="https://fonts.bunny.net/css?family=instrument-sans:400,500,600" rel="stylesheet" />
 
     @vite(['resources/js/app.tsx', "resources/js/pages/{$page['component']}.tsx"])
     @inertiaHead
+
+    <script>
+        // Tangkap event PWA sebelum React berhasil dimuat
+        window.deferredPWAEvent = null;
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            window.deferredPWAEvent = e;
+            window.dispatchEvent(new Event('pwa-ready'));
+        });
+
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/service-worker.js');
+            });
+        }
+    </script>
 </head>
 
 <body class="font-sans antialiased">

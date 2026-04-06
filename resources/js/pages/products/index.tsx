@@ -522,7 +522,7 @@ return true;
                 </div>
             </div>
 
-            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            <div className={`grid gap-3 sm:gap-6 ${isBuyer ? 'grid-cols-2 lg:grid-cols-3 xl:grid-cols-4' : 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4'}`}>
                 {products.data.map((product) => (
                     <Card key={product.id} className="group flex flex-col relative overflow-hidden transition-all hover:shadow-xl border-sidebar-border/70 dark:border-sidebar-border">
                         {canManageProducts && (
@@ -554,33 +554,33 @@ return true;
                                     <Package className="h-12 w-12 text-muted-foreground/20" />
                                 </div>
                             )}
-                            <div className="p-5 pr-16 bg-gradient-to-t from-background/80 to-transparent pt-10 mt-[-40px] relative z-10">
-                                <CardTitle className="text-lg line-clamp-2 leading-tight font-black italic tracking-tight uppercase">
+                            <div className="p-3 sm:p-5 pr-12 sm:pr-16 bg-gradient-to-t from-background/80 to-transparent pt-8 sm:pt-10 mt-[-30px] sm:mt-[-40px] relative z-10">
+                                <CardTitle className="text-sm sm:text-lg line-clamp-2 leading-tight font-black italic tracking-tight uppercase">
                                     {product.name}
                                 </CardTitle>
-                                <div className="flex items-center gap-2 mt-1">
-                                    <div className="text-[10px] text-muted-foreground font-black opacity-70 uppercase tracking-widest leading-none">
+                                <div className="flex items-center flex-wrap gap-1 sm:gap-2 mt-1">
+                                    <div className="text-[9px] sm:text-[10px] text-muted-foreground font-black opacity-70 uppercase tracking-widest leading-none">
                                         {product.sku}
                                     </div>
-                                    <div className="w-1 h-1 rounded-full bg-border" />
-                                    <div className="text-[10px] text-primary font-black uppercase tracking-widest leading-none">
+                                    <div className="hidden sm:block w-1 h-1 rounded-full bg-border" />
+                                    <div className="text-[9px] sm:text-[10px] text-primary font-black uppercase tracking-widest leading-none">
                                         {product.satuan_barang}
                                     </div>
                                 </div>
                             </div>
                         </CardHeader>
 
-                        <CardContent className="flex-1 space-y-4 pt-4">
-                            <div className="flex justify-between items-baseline">
+                        <CardContent className="flex-1 space-y-4 pt-3 sm:pt-4 p-3 sm:p-6">
+                            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-baseline gap-2 sm:gap-0">
                                 <div className="flex flex-col">
-                                    <div className="text-2xl font-black text-primary tracking-tighter">
+                                    <div className="text-base sm:text-2xl font-black text-primary tracking-tighter">
                                         {formatCurrency(product.display_price)}
                                     </div>
-                                    <div className="text-[10px] font-black text-muted-foreground/50 italic uppercase tracking-tighter -mt-1 ml-1">
+                                    <div className="text-[9px] sm:text-[10px] font-black text-muted-foreground/50 italic uppercase tracking-tighter mt-0 sm:-mt-1 ml-0 sm:ml-1">
                                         / {product.satuan_barang}
                                     </div>
                                 </div>
-                                <Badge variant={product.stock > 0 ? "outline" : "destructive"} className="text-[10px] uppercase font-bold tracking-widest">
+                                <Badge variant={product.stock > 0 ? "outline" : "destructive"} className="text-[8px] sm:text-[10px] uppercase font-bold tracking-widest px-1.5 py-0 sm:px-2.5 sm:py-0.5">
                                     {product.stock > 0 ? `STOK: ${product.stock}` : 'HABIS'}
                                 </Badge>
                             </div>
@@ -611,13 +611,13 @@ return true;
                         </CardContent>
 
                         {isBuyer && (
-                            <CardFooter className="pt-3 pb-4 bg-muted/20 border-t items-center justify-between">
-                                <div className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Jumlah</div>
-                                <div className="flex items-center gap-1">
+                            <CardFooter className="p-2 sm:p-4 pt-2 sm:pt-3 pb-3 sm:pb-4 bg-muted/20 border-t flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2">
+                                <div className="text-[9px] sm:text-[10px] font-bold uppercase tracking-widest text-muted-foreground text-center sm:text-left">Jumlah</div>
+                                <div className="flex items-center justify-center sm:justify-end gap-1">
                                     <Button
                                         variant="outline"
                                         size="icon"
-                                        className="h-8 w-8 rounded-full border-2"
+                                        className="h-7 w-7 sm:h-8 sm:w-8 rounded-full border-2"
                                         onClick={() => handleQuantityChange(product.id, getQuantity(product.id) - 1)}
                                         disabled={getQuantity(product.id) <= 0}
                                     >
@@ -625,14 +625,14 @@ return true;
                                     </Button>
                                     <Input
                                         type="number"
-                                        className="h-8 w-12 text-center font-bold px-1 border-none focus-visible:ring-0 bg-transparent"
+                                        className="h-7 sm:h-8 w-10 sm:w-12 text-center text-xs sm:text-base font-bold px-0 sm:px-1 border-none focus-visible:ring-0 bg-transparent"
                                         value={getQuantity(product.id).toString()}
                                         onChange={(e) => handleQuantityChange(product.id, parseInt(e.target.value) || 0)}
                                     />
                                     <Button
                                         variant="outline"
                                         size="icon"
-                                        className="h-8 w-8 rounded-full border-2"
+                                        className="h-7 w-7 sm:h-8 sm:w-8 rounded-full border-2"
                                         onClick={() => handleQuantityChange(product.id, getQuantity(product.id) + 1)}
                                         disabled={getQuantity(product.id) >= product.stock}
                                     >

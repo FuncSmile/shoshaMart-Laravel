@@ -28,7 +28,7 @@ class ReportController extends Controller
 
         $query = Order::with(['buyer:id,username,branch_name', 'items.product:id,name,sku,satuan_barang'])
             ->withCount('items')
-            ->where('status', 'APPROVED')
+            ->whereIn('status', ['APPROVED', 'paid', 'verified'])
             ->latest();
 
         if ($jenisPesanan && $jenisPesanan !== 'ALL') {

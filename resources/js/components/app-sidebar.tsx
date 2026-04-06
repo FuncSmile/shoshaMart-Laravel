@@ -1,5 +1,5 @@
 import { Link, usePage, router } from '@inertiajs/react';
-import { BookOpen, FolderGit2, LayoutGrid, ShoppingBag, Users, ShoppingCart, History } from 'lucide-react';
+import { BookOpen, FolderGit2, LayoutGrid, ShoppingBag, Users, ShoppingCart, History, CreditCard } from 'lucide-react';
 import { useEffect } from 'react';
 import AppLogo from '@/components/app-logo';
 import { NavFooter } from '@/components/nav-footer';
@@ -20,6 +20,7 @@ import { index as ordersIndex } from '@/routes/orders/index';
 import { index as productsIndex } from '@/routes/products/index';
 import { index as usersIndex } from '@/routes/users/index';
 import { index as stockLogsIndex } from '@/routes/stock-logs/index';
+import { index as settlementsIndex } from '@/routes/settlements/index';
 import type { NavItem } from '@/types';
 
 export function AppSidebar() {
@@ -82,6 +83,14 @@ export function AppSidebar() {
             title: 'Pesanan Saya',
             href: ordersIndex.url(),
             icon: ShoppingCart,
+        });
+    }
+
+    if (user?.role === 'SUPERADMIN' || user?.role === 'ADMIN_TIER') {
+        mainNavItems.push({
+            title: 'Hutang & Pelunasan',
+            href: settlementsIndex.url(),
+            icon: CreditCard,
         });
     }
 

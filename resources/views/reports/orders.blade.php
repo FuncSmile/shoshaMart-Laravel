@@ -87,7 +87,8 @@
                         <th width="15%">Jenis</th>
                         <th width="10%">Qty</th>
                         <th width="10%">Satuan</th>
-                        <th width="15%">Subtotal (IDR)</th>
+                        <th width="12%">Subtotal (IDR)</th>
+                        <th width="10%">Keterangan</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -108,6 +109,9 @@
                                 {{ $order->created_at->format('d/m/Y') }}
                             </td>
                             <td class="text-right"><strong>{{ number_format($order->total_amount, 0, ',', '.') }}</strong></td>
+                            <td class="text-right" style="font-weight: bold; font-size: 8pt;">
+                                {{ in_array(strtolower($order->status), ['paid', 'verified']) ? 'LUNAS' : '-' }}
+                            </td>
                         </tr>
                         
                         {{-- Order Items --}}
@@ -123,12 +127,13 @@
                                 <td class="text-right" style="color: #666;">
                                     {{ number_format($item->subtotal, 0, ',', '.') }}
                                 </td>
+                                <td></td>
                             </tr>
                         @endforeach
                         
                         {{-- Spacer --}}
                         <tr>
-                            <td colspan="8" style="border: none; padding: 2px;"></td>
+                            <td colspan="9" style="border: none; padding: 2px;"></td>
                         </tr>
                     @endforeach
                 </tbody>
@@ -137,6 +142,7 @@
                         <td colspan="5" class="text-right">TOTAL PENGADAAN CABANG</td>
                         <td class="text-right" colspan="2">{{ $totalItemsCount }} ITEM UNIK</td>
                         <td class="text-right">{{ number_format($grandTotal, 0, ',', '.') }}</td>
+                        <td></td>
                     </tr>
                 </tfoot>
             </table>

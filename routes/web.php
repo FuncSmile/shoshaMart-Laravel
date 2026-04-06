@@ -5,6 +5,7 @@ use App\Http\Controllers\OrderController;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\ReportController;
+use App\Http\Controllers\SettlementController;
 use App\Http\Controllers\StockLogController;
 use App\Http\Controllers\UserController;
 use Illuminate\Support\Facades\Route;
@@ -35,6 +36,7 @@ Route::middleware(['auth'])->group(function () {
     Route::patch('/orders/{order}/cancel', [OrderController::class, 'cancel'])->name('orders.cancel');
     Route::patch('/orders/{order}', [OrderController::class, 'update'])->name('orders.update');
     Route::post('/orders/{order}/mark-as-printed', [OrderController::class, 'markAsPrinted'])->name('orders.mark-as-printed');
+    Route::post('/orders/{order}/mark-as-paid', [OrderController::class, 'markAsPaid'])->name('orders.mark-as-paid');
     Route::get('/orders/{order}/invoice', [OrderController::class, 'invoice'])->name('orders.invoice');
     Route::delete('/orders/{order}', [OrderController::class, 'destroy'])->name('orders.destroy');
     Route::get('/orders-bulk/invoice', [OrderController::class, 'bulkInvoice'])->name('orders.bulk-invoice');
@@ -45,6 +47,10 @@ Route::middleware(['auth'])->group(function () {
 
     // Profile Update
     Route::post('/profile/update-phone', [ProfileController::class, 'updatePhone'])->name('profile.update-phone');
+    // Settlements
+    Route::get('/settlements', [SettlementController::class, 'index'])->name('settlements.index');
+    Route::post('/settlements', [SettlementController::class, 'store'])->name('settlements.store');
+    Route::post('/settlements/{settlement}/verify', [SettlementController::class, 'verify'])->name('settlements.verify');
 });
 
 require __DIR__.'/settings.php';
