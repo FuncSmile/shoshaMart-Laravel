@@ -9,6 +9,7 @@ use App\Http\Resources\OrderResource;
 use App\Models\Order;
 use App\Models\Tier;
 use App\Models\User;
+use App\Services\DebtService;
 use App\Services\OrderService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
@@ -18,7 +19,8 @@ use Inertia\Inertia;
 class OrderController extends Controller
 {
     public function __construct(
-        protected OrderService $orderService
+        protected OrderService $orderService,
+        protected DebtService $debtService
     ) {}
 
     public function index(Request $request)
@@ -166,17 +168,22 @@ class OrderController extends Controller
     {
         Gate::authorize('generateInvoice', $order);
 
-        $order->load(['buyer:id,username,branch_name,phone', 'items.product:id,name,sku', 'tier:id,name']);
+        $order->load(['buyer:id,username,branch_name,phone', 'items.product:id,name,sku,category', 'tier:id,name']);
 
-        $pdf = Pdf::loadView('invoices.dotmatrix', compact('order'));
+        $view = $order->jenis_pesanan === 'opening' ? 'invoices.opening_report' : 'invoices.dotmatrix';
+        $pdf = Pdf::loadView($view, compact('order'));
 
-        // Custom paper size: 8.5 x 5.5 inch (Continuous Form Half Page)
-        // 1 inch = 72 points -> 8.5 * 72 = 612, 5.5 * 72 = 396
-        $pdf->setPaper([0, 0, 612, 396], 'portrait');
+        if ($order->jenis_pesanan === 'opening') {
+            $pdf->setPaper('a4', 'portrait');
+        } else {
+            // Custom paper size: 8.5 x 5.5 inch (Continuous Form Half Page)
+            $pdf->setPaper([0, 0, 612, 396], 'portrait');
+        }
 
+        $prefix = $order->jenis_pesanan === 'opening' ? 'LAPORAN-OPENING' : 'INVOICE';
         $branchName = strtoupper(str_replace(' ', '_', $order->buyer->branch_name ?? $order->buyer->username));
         $date = $order->created_at->format('Y-m-d');
-        $filename = "{$branchName}-{$order->order_number}-{$date}.pdf";
+        $filename = "{$prefix}-{$branchName}-{$order->order_number}-{$date}.pdf";
 
         $order->update(['is_printed' => true, 'printed_at' => now()]);
         $order->histories()->create([
@@ -261,17 +268,20 @@ class OrderController extends Controller
 
     public function markAsPaid(Request $request, Order $order)
     {
-        if (! $request->user()->isSuperAdmin() && $request->user()->role !== 'ADMIN_TIER') {
+        if (! $request->user()->isSuperAdmin()) {
             abort(403);
         }
 
-        $order->update(['status' => Order::STATUS_PAID]);
+        if ($order->status !== Order::STATUS_DEBT) {
+            return back()->withErrors(['error' => 'Hanya pesanan berstatus Disetujui (Approved) yang dapat dibayar lunas.']);
+        }
 
-        $order->histories()->create([
-            'user_id' => $request->user()->id,
-            'message' => 'Pesanan ditandai lunas secara manual oleh '.$request->user()->username,
-        ]);
+        try {
+            $this->debtService->createManualSettlement($request->user(), $order);
 
-        return back()->with('message', 'Pesanan telah ditandai lunas.');
+            return back()->with('message', 'Pesanan telah ditandai lunas dan catatan pelunasan telah dibuat.');
+        } catch (\Exception $e) {
+            return back()->withErrors(['error' => $e->getMessage()]);
+        }
     }
 }

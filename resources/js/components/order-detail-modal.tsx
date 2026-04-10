@@ -320,7 +320,7 @@ export function OrderDetailModal({ open, onOpenChange, orderId, onReject }: {
                                             </Badge>
                                         </div>
                                         <h2 className="text-3xl md:text-6xl font-[1000] italic tracking-tighter text-foreground/90 uppercase leading-none">
-                                            Invoice <span className="text-primary italic">#{order.id.slice(0, 4)}</span>
+                                            {order.jenis_pesanan === 'opening' ? 'Laporan' : 'Invoice'} <span className="text-primary italic">#{order.id.slice(0, 4)}</span>
                                         </h2>
                                         <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-[10px] md:text-xs font-black text-muted-foreground uppercase tracking-[0.2em]">
                                             <div className="flex items-center gap-2"><Calendar className="w-4 h-4 text-primary/60" /> {new Date(order.created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}</div>
@@ -845,7 +845,7 @@ export function OrderDetailModal({ open, onOpenChange, orderId, onReject }: {
                                                 className="rounded-full px-8 md:px-10 bg-indigo-600 hover:bg-indigo-700 font-[1000] italic h-12 md:h-14 shadow-[0_10px_20px_-5px_rgba(79,70,229,0.3)] text-[11px] md:text-sm uppercase tracking-widest transition-all hover:-translate-y-1"
                                                 onClick={handlePrintInvoice}
                                             >
-                                                <Printer className="w-5 h-5 mr-2.5" /> CETAK INVOICE
+                                                <Printer className="w-5 h-5 mr-2.5" /> {order.jenis_pesanan === 'opening' ? 'CETAK LAPORAN' : 'CETAK INVOICE'}
                                             </Button>
                                         )}
                                     </div>

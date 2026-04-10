@@ -2,9 +2,10 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { useForm } from '@inertiajs/react';
+import { useForm, router } from '@inertiajs/react';
 import { Loader2, Upload, AlertCircle, FileCheck } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { store as settlementsStore } from '@/routes/settlements/index';
 
 interface SettlementModalProps {
     isOpen: boolean;
@@ -25,17 +26,12 @@ export function SettlementModal({ isOpen, onClose, branch, startDate, endDate }:
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         
-        setData((prev) => ({
-            ...prev,
-            buyer_id: branch?.id,
-            start_date: startDate,
-            end_date: endDate,
-        }));
+        if (!branch) return;
 
         // Use post specifically for file uploads
         router.post(settlementsStore.url(), {
             ...data,
-            buyer_id: branch?.buyer_id,
+            buyer_id: branch.buyer_id,
             start_date: startDate,
             end_date: endDate,
         }, {
@@ -70,7 +66,7 @@ export function SettlementModal({ isOpen, onClose, branch, startDate, endDate }:
                         <div className="bg-muted/30 p-4 rounded-xl border border-dashed border-muted-foreground/20 space-y-3">
                             <div className="flex justify-between items-center text-sm">
                                 <span className="text-muted-foreground">Cabang:</span>
-                                <span className="font-semibold">{branch.buyer?.username}</span>
+                                <span className="font-semibold uppercase tracking-tight text-blue-700">{branch.buyer?.branch_name || branch.buyer?.username}</span>
                             </div>
                             <div className="flex justify-between items-center text-sm">
                                 <span className="text-muted-foreground">Periode Hutang:</span>
@@ -145,6 +141,3 @@ export function SettlementModal({ isOpen, onClose, branch, startDate, endDate }:
     );
 }
 
-// Fixed import for router in handleSubmit
-import { router } from '@inertiajs/react';
-import { store as settlementsStore } from '@/routes/settlements/index';

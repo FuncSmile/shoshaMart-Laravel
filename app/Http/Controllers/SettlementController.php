@@ -28,14 +28,36 @@ class SettlementController extends Controller
 
         $debtSummary = $this->debtService->getDebtSummary($startDate, $endDate, $tierId);
 
-        $settlements = Settlement::with(['buyer', 'admin', 'verifiedBy'])
-            ->when(! $user->isSuperAdmin(), fn ($q) => $q->whereHas('buyer', fn ($bq) => $bq->where('tier_id', $user->tier_id)))
-            ->latest()
-            ->paginate(15);
+        // Filter settlements based on date and tier
+        $settlementsQuery = Settlement::with(['buyer', 'admin', 'verifiedBy'])
+            ->where(function ($q) use ($startDate, $endDate) {
+                $q->whereBetween('start_date', [$startDate, $endDate])
+                    ->orWhereBetween('end_date', [$startDate, $endDate]);
+            })
+            ->when($tierId, fn ($q) => $q->whereHas('buyer', fn ($bq) => $bq->where('tier_id', $tierId)))
+            ->when(! $user->isSuperAdmin(), fn ($q) => $q->whereHas('buyer', fn ($bq) => $bq->where('tier_id', $user->tier_id)));
+
+        // Totals for Cards
+        $totalDebt = $debtSummary->sum('orders_sum_total_amount');
+
+        $pendingQuery = clone $settlementsQuery;
+        $totalPendingAmount = $pendingQuery->where('status', 'paid')->sum('total_amount');
+        $pendingCount = $pendingQuery->count();
+
+        $verifiedQuery = clone $settlementsQuery;
+        $totalVerifiedAmount = $verifiedQuery->where('status', 'verified')->sum('total_amount');
+
+        $settlements = $settlementsQuery->latest()->paginate(15);
 
         return Inertia::render('settlements/index', [
             'debtSummary' => $debtSummary,
             'settlements' => $settlements,
+            'stats' => [
+                'total_debt' => (float) $totalDebt,
+                'total_pending' => (float) $totalPendingAmount,
+                'pending_count' => (int) $pendingCount,
+                'total_verified' => (float) $totalVerifiedAmount,
+            ],
             'tiers' => $user->isSuperAdmin() ? Tier::select(['id', 'name'])->get() : [],
             'filters' => [
                 'start_date' => $startDate,
@@ -88,5 +110,29 @@ class SettlementController extends Controller
         });
 
         return back()->with('message', 'Pelunasan telah diverifikasi.');
+    }
+
+    public function cancel(Request $request, Settlement $settlement)
+    {
+        if (! $request->user()->isSuperAdmin()) {
+            abort(403, 'Hanya Superadmin yang dapat membatalkan pelunasan.');
+        }
+
+        if ($settlement->status !== 'paid') {
+            return back()->withErrors(['error' => 'Hanya pelunasan yang berstatus PENDING (Paid) yang dapat dibatalkan.']);
+        }
+
+        DB::transaction(function () use ($settlement) {
+            // Revert linked orders to APPROVED (Debt) status and clear settlement_id
+            Order::where('settlement_id', $settlement->id)->update([
+                'status' => Order::STATUS_DEBT,
+                'settlement_id' => null,
+            ]);
+
+            // Delete the settlement record
+            $settlement->delete();
+        });
+
+        return back()->with('message', 'Pelunasan telah dibatalkan dan sisa hutang telah dikembalikan.');
     }
 }

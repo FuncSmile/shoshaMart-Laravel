@@ -21,6 +21,7 @@ Route::middleware(['auth'])->group(function () {
     // Products
     Route::resource('products', ProductController::class)->only(['index', 'store', 'update', 'destroy']);
     Route::get('/products-template', [ProductController::class, 'downloadTemplate'])->name('products.download-template');
+    Route::get('/products-export', [ProductController::class, 'export'])->name('products.export');
     Route::post('/products-import', [ProductController::class, 'import'])->name('products.import');
     Route::post('/products/reorder', [ProductController::class, 'reorder'])->name('products.reorder');
     Route::post('/products/{product}/stock', [ProductController::class, 'updateStock'])->name('products.update-stock');
@@ -51,6 +52,7 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/settlements', [SettlementController::class, 'index'])->name('settlements.index');
     Route::post('/settlements', [SettlementController::class, 'store'])->name('settlements.store');
     Route::post('/settlements/{settlement}/verify', [SettlementController::class, 'verify'])->name('settlements.verify');
+    Route::post('/settlements/{settlement}/cancel', [SettlementController::class, 'cancel'])->name('settlements.cancel');
 });
 
 require __DIR__.'/settings.php';

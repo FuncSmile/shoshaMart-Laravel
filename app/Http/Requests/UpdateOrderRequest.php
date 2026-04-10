@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Models\Order;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 
@@ -24,7 +25,7 @@ class UpdateOrderRequest extends FormRequest
     {
         return [
             'nama_pemesan' => ['required', 'string', 'max:255'],
-            'jenis_pesanan' => ['required', 'string', 'in:awal bulan,pertengahan bulan,Lembur,tambahan bulan ini'],
+            'jenis_pesanan' => ['required', 'string', 'in:'.implode(',', Order::TYPES)],
             'items' => ['required', 'array', 'min:1'],
             'items.*.product_id' => ['required', 'uuid', 'exists:products,id'],
             'items.*.quantity' => ['required', 'integer', 'min:1'],

@@ -446,7 +446,7 @@ export default function OrderIndex() {
                                                         </Button>
                                                     )}
 
-                                                    {order.status === 'APPROVED' && (auth_role === 'SUPERADMIN' || auth_role === 'ADMIN_TIER') && (
+                                                    {order.status === 'APPROVED' && auth_role === 'SUPERADMIN' && (
                                                         <Button
                                                             variant="default"
                                                             size="sm"
@@ -579,7 +579,7 @@ export default function OrderIndex() {
                             Cetak Cepat (Approved)
                         </DialogTitle>
                         <DialogDescription className="font-bold text-muted-foreground text-[10px] uppercase tracking-widest">
-                            Pilih filter untuk mencetak banyak invoice sekaligus.
+                            Pilih filter untuk mencetak banyak dokumen sekaligus.
                         </DialogDescription>
                     </DialogHeader>
 
@@ -620,6 +620,8 @@ export default function OrderIndex() {
                                         <SelectItem value="pertengahan bulan" className="font-bold">PERTENGAHAN BULAN</SelectItem>
                                         <SelectItem value="Lembur" className="font-bold">LEMBUR</SelectItem>
                                         <SelectItem value="tambahan bulan ini" className="font-bold">TAMBAHAN BULAN INI</SelectItem>
+                                        <SelectItem value="opening" className="font-bold">OPENING</SelectItem>
+                                        <SelectItem value="teknisi" className="font-bold">TEKNISI</SelectItem>
                                     </SelectContent>
                                 </Select>
                             </div>
@@ -686,6 +688,8 @@ export default function OrderIndex() {
                                         <SelectItem value="pertengahan bulan" className="font-bold text-xs">PERTENGAHAN BULAN</SelectItem>
                                         <SelectItem value="Lembur" className="font-bold text-xs">LEMBUR</SelectItem>
                                         <SelectItem value="tambahan bulan ini" className="font-bold text-xs">TAMBAHAN BULAN INI</SelectItem>
+                                        <SelectItem value="opening" className="font-bold text-xs">OPENING</SelectItem>
+                                        <SelectItem value="teknisi" className="font-bold text-xs">TEKNISI</SelectItem>
                                     </SelectContent>
                                 </Select>
                             </div>
@@ -897,6 +901,8 @@ url.searchParams.append('end_date', reportData.end_date);
                                                     <SelectItem value="pertengahan bulan">PERTENGAHAN</SelectItem>
                                                     <SelectItem value="Lembur">LEMBUR</SelectItem>
                                                     <SelectItem value="tambahan bulan ini">TAMBAHAN</SelectItem>
+                                                    <SelectItem value="opening">OPENING</SelectItem>
+                                                    <SelectItem value="teknisi">TEKNISI</SelectItem>
                                                 </SelectContent>
                                             </Select>
                                         </div>

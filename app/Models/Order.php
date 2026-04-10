@@ -17,6 +17,8 @@ class Order extends Model
         'pertengahan bulan',
         'Lembur',
         'tambahan bulan ini',
+        'opening',
+        'teknisi',
     ];
 
     const STATUS_DEBT = 'APPROVED';

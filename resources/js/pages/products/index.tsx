@@ -53,7 +53,7 @@ import {
     SheetDescription,
 } from "@/components/ui/sheet";
 import { cn } from '@/lib/utils';
-import { index as productsIndex } from '@/routes/products/index';
+import productsIndex from '@/routes/products/index';
 import { stockHistory as getStockHistory } from '@/routes/api/products/index';
 
 interface Tier {
@@ -76,6 +76,7 @@ interface Product {
     display_price: number;
     image_url: string | null;
     satuan_barang: string;
+    category?: string;
     tier_prices?: TierPrice[];
 }
 
@@ -171,7 +172,7 @@ export default function ProductsIndex() {
     useEffect(() => {
         const timer = setTimeout(() => {
             if (search !== (filters.search || '')) {
-                router.get(productsIndex.url(), { search }, {
+                router.get(productsIndex.index.url(), { search }, {
                     preserveState: true,
                     preserveScroll: true,
                     replace: true
@@ -375,6 +376,7 @@ export default function ProductsIndex() {
         sku: '',
         image_url: '',
         satuan_barang: '',
+        category: '',
         base_price: 0,
         stock: 0,
         tier_prices: tiers.map(t => ({ tier_id: t.id, price: 0 }))
@@ -388,6 +390,7 @@ export default function ProductsIndex() {
             sku: '',
             image_url: '',
             satuan_barang: '',
+            category: '',
             base_price: 0,
             stock: 0,
             tier_prices: tiers.map(t => ({ tier_id: t.id, price: 0 }))
@@ -403,6 +406,7 @@ export default function ProductsIndex() {
             sku: product.sku,
             image_url: product.image_url || '',
             satuan_barang: product.satuan_barang || '',
+            category: product.category || '',
             base_price: product.base_price || 0,
             stock: product.stock,
             tier_prices: tiers.map(t => {
@@ -513,6 +517,15 @@ return true;
                                 className="rounded-full h-12 px-6 shadow-sm gap-2 border-2"
                             >
                                 <Upload className="h-4 w-4" /> Import
+                            </Button>
+                            <Button
+                                variant="outline"
+                                asChild
+                                className="rounded-full h-12 px-6 shadow-sm gap-2 border-2 border-amber-500/20 text-amber-600 hover:bg-amber-50"
+                            >
+                                <a href={productsIndex.export.url()}>
+                                    <Download className="h-4 w-4" /> Export CSV
+                                </a>
                             </Button>
                             <Button onClick={openCreateModal} className="rounded-full h-12 px-6 shadow-lg gap-2">
                                 <Plus className="h-5 w-5" /> Tambah Produk
@@ -963,6 +976,25 @@ return null;
 
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 md:gap-6">
                             <div className="space-y-2">
+                                <Label htmlFor="category" className="text-[10px] md:text-xs font-black uppercase tracking-widest text-muted-foreground">Kategori</Label>
+                                <Select
+                                    value={productForm.data.category}
+                                    onValueChange={val => productForm.setData('category', val)}
+                                >
+                                    <SelectTrigger id="category" className="h-10 md:h-11 rounded-xl font-bold border-2 focus:ring-primary/20">
+                                        <SelectValue placeholder="Pilih Kategori" />
+                                    </SelectTrigger>
+                                    <SelectContent className="rounded-xl border-2 shadow-2xl">
+                                        <SelectItem value="ATK" className="font-bold">ATK</SelectItem>
+                                        <SelectItem value="Perlengkapan Laundry" className="font-bold">PERLENGKAPAN LAUNDRY</SelectItem>
+                                        <SelectItem value="Perlengkapan Kebersihan" className="font-bold">PERLENGKAPAN KEBERSIHAN</SelectItem>
+                                        <SelectItem value="Furniture" className="font-bold">FURNITURE</SelectItem>
+                                        <SelectItem value="Lain-lain" className="font-bold">LAIN-LAIN</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                                {productForm.errors.category && <p className="text-destructive text-[10px] font-bold">{productForm.errors.category}</p>}
+                            </div>
+                            <div className="space-y-2">
                                 <Label htmlFor="base_price" className="text-[10px] md:text-xs font-black uppercase tracking-widest text-muted-foreground">Harga Modal (Dasar)</Label>
                                 <div className="relative">
                                     <span className="absolute left-3 top-2.5 md:top-3 text-muted-foreground text-xs font-bold">Rp</span>
@@ -976,6 +1008,9 @@ return null;
                                 </div>
                                 {productForm.errors.base_price && <p className="text-destructive text-[10px] font-bold">{productForm.errors.base_price}</p>}
                             </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-1 gap-4 md:gap-6">
                             <div className="space-y-2">
                                 <Label htmlFor="stock" className="text-[10px] md:text-xs font-black uppercase tracking-widest text-muted-foreground">Stok Awal</Label>
                                 <Input
@@ -1421,7 +1456,7 @@ ProductsIndex.layout = {
     breadcrumbs: [
         {
             title: 'Katalog Produk',
-            href: productsIndex.url(),
+            href: productsIndex.index.url(),
         },
     ],
 };

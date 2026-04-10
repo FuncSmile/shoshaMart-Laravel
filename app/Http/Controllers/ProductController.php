@@ -31,7 +31,7 @@ class ProductController extends Controller
         $search = $request->input('search');
 
         $query = Product::query()
-            ->select(['id', 'name', 'sku', 'image_url', 'satuan_barang', 'stock', 'base_price'])
+            ->select(['id', 'name', 'sku', 'image_url', 'satuan_barang', 'stock', 'base_price', 'category'])
             ->with(['tierPrices' => function ($query) use ($user, $canManage) {
                 if ($canManage) {
                     return; // SuperAdmin & Warehouse sees all
@@ -67,7 +67,7 @@ class ProductController extends Controller
     public function apiIndex()
     {
         $products = Product::with('tierPrices:id,product_id,tier_id,price')
-            ->select(['id', 'name', 'sku', 'base_price', 'satuan_barang', 'image_url'])
+            ->select(['id', 'name', 'sku', 'base_price', 'satuan_barang', 'image_url', 'category'])
             ->orderBy('position', 'asc')
             ->orderBy('name', 'asc')
             ->get();
@@ -109,6 +109,7 @@ class ProductController extends Controller
                 'sku' => $validated['sku'],
                 'image_url' => $validated['image_url'],
                 'satuan_barang' => $validated['satuan_barang'],
+                'category' => $validated['category'] ?? null,
                 'base_price' => $validated['base_price'],
                 'stock' => $validated['stock'],
             ]);
@@ -137,6 +138,7 @@ class ProductController extends Controller
                 'sku' => $validated['sku'],
                 'image_url' => $validated['image_url'],
                 'satuan_barang' => $validated['satuan_barang'],
+                'category' => $validated['category'] ?? null,
                 'base_price' => $validated['base_price'],
                 'stock' => $validated['stock'],
             ]);
@@ -222,19 +224,19 @@ class ProductController extends Controller
         }
 
         $tiers = Tier::all();
-        $headers = ['name', 'sku', 'base_price', 'stock', 'satuan_barang', 'image_url'];
+        $headers = ['name', 'sku', 'base_price', 'stock', 'satuan_barang', 'category', 'image_url'];
 
         foreach ($tiers as $tier) {
             $headers[] = 'price_'.strtoupper(str_replace(' ', '_', $tier->name));
         }
 
-        $callback = function () use ($headers) {
+        $callback = function () use ($headers, $tiers) {
             $file = fopen('php://output', 'w');
             fputcsv($file, $headers);
 
             // Sample Row
-            $sample = ['Sample Product', 'SKU-001', '10000', '50', 'PCS', 'https://example.com/image.jpg'];
-            foreach (array_slice($headers, 6) as $h) {
+            $sample = ['Sample Product', 'SKU-001', '10000', '50', 'PCS', 'ATK', 'https://example.com/image.jpg'];
+            foreach ($tiers as $tier) {
                 $sample[] = '9000';
             }
             fputcsv($file, $sample);
@@ -245,6 +247,55 @@ class ProductController extends Controller
         return Response::stream($callback, 200, [
             'Content-Type' => 'text/csv',
             'Content-Disposition' => 'attachment; filename="product_template.csv"',
+        ]);
+    }
+
+    public function export()
+    {
+        /** @var User $user */
+        $user = auth()->user();
+        if (! $user?->isSuperAdmin() && ! $user?->isWarehouse()) {
+            abort(403);
+        }
+
+        $tiers = Tier::all();
+        $headers = ['name', 'sku', 'base_price', 'stock', 'satuan_barang', 'category', 'image_url'];
+
+        foreach ($tiers as $tier) {
+            $headers[] = 'price_'.strtoupper(str_replace(' ', '_', $tier->name));
+        }
+
+        $products = Product::with('tierPrices')->get();
+
+        $callback = function () use ($headers, $products, $tiers) {
+            $file = fopen('php://output', 'w');
+            fputcsv($file, $headers);
+
+            foreach ($products as $product) {
+                $row = [
+                    $product->name,
+                    $product->sku,
+                    $product->base_price,
+                    $product->stock,
+                    $product->satuan_barang,
+                    $product->category,
+                    $product->image_url,
+                ];
+
+                foreach ($tiers as $tier) {
+                    $tp = $product->tierPrices->firstWhere('tier_id', $tier->id);
+                    $row[] = $tp ? $tp->price : '';
+                }
+
+                fputcsv($file, $row);
+            }
+
+            fclose($file);
+        };
+
+        return Response::stream($callback, 200, [
+            'Content-Type' => 'text/csv',
+            'Content-Disposition' => 'attachment; filename="products_export_'.date('Y-m-d').'.csv"',
         ]);
     }
 
@@ -284,6 +335,7 @@ class ProductController extends Controller
                         'base_price' => $data['base_price'],
                         'stock' => $data['stock'],
                         'satuan_barang' => $data['satuan_barang'],
+                        'category' => $data['category'] ?? null,
                         'image_url' => $data['image_url'] ?? null,
                     ]
                 );

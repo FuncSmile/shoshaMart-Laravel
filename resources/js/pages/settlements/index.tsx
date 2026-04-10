@@ -11,7 +11,9 @@ import {
     ExternalLink,
     AlertCircle,
     ArrowRight,
-    TrendingUp
+    TrendingUp,
+    XCircle,
+    Trash2
 } from 'lucide-react';
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
@@ -20,7 +22,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { SettlementModal } from './components/settlement-modal';
-import { index as settlementsIndex, verify as settlementsVerify } from '@/routes/settlements/index';
+import { index as settlementsIndex, verify as settlementsVerify, cancel as settlementsCancel } from '@/routes/settlements/index';
 import { Pagination } from '@/components/ui/pagination';
 import {
     Select,
@@ -40,6 +42,12 @@ interface SettlementPageProps {
         links: any[];
         meta: any;
     };
+    stats: {
+        total_debt: number;
+        total_pending: number;
+        pending_count: number;
+        total_verified: number;
+    };
     tiers: any[];
     filters: {
         start_date: string;
@@ -49,7 +57,7 @@ interface SettlementPageProps {
 }
 
 export default function SettlementIndex() {
-    const { debtSummary, settlements, tiers, filters, auth } = usePage().props as unknown as SettlementPageProps;
+    const { debtSummary, settlements, tiers, filters, auth, stats } = usePage().props as unknown as SettlementPageProps;
     const [startDate, setStartDate] = useState(filters.start_date);
     const [endDate, setEndDate] = useState(filters.end_date);
     const [tierId, setTierId] = useState(filters.tier_id || 'ALL');
@@ -78,7 +86,7 @@ export default function SettlementIndex() {
     };
 
     const openSettlementModal = (row: any) => {
-        setSelectedBranch(row.buyer);
+        setSelectedBranch(row);
         setSelectedRange({ start: row.month_start, end: row.month_end });
         setIsSettlementModalOpen(true);
     };
@@ -86,6 +94,12 @@ export default function SettlementIndex() {
     const handleVerify = (id: string) => {
         if (confirm('Verifikasi pelunasan ini?')) {
             router.post(settlementsVerify.url({ settlement: id }));
+        }
+    };
+
+    const handleCancel = (id: string) => {
+        if (confirm('Batalkan pelunasan ini? Data pesanan akan dikembalikan ke status Hutang (APPROVED) dan data pelunasan ini akan dihapus.')) {
+            router.post(settlementsCancel.url({ settlement: id }));
         }
     };
 
@@ -157,7 +171,7 @@ export default function SettlementIndex() {
                     </CardHeader>
                     <CardContent>
                         <div className="text-2xl font-bold text-red-700">
-                            Rp {debtSummary.reduce((acc, curr) => acc + Number(curr.orders_sum_total_amount || 0), 0).toLocaleString('id-ID')}
+                            Rp {stats.total_debt.toLocaleString('id-ID')}
                         </div>
                         <p className="text-xs text-red-600/70 mt-1">Estimasi dari {debtSummary.length} cabang</p>
                     </CardContent>
@@ -172,9 +186,9 @@ export default function SettlementIndex() {
                     </CardHeader>
                     <CardContent>
                         <div className="text-2xl font-bold text-blue-700">
-                            {settlements.data.filter(s => s.status === 'paid').length} Pengajuan
+                            Rp {stats.total_pending.toLocaleString('id-ID')}
                         </div>
-                        <p className="text-xs text-blue-600/70 mt-1">Perlu pengecekan bukti bayar</p>
+                        <p className="text-xs text-blue-600/70 mt-1">{stats.pending_count} Pengajuan perlu pengecekan</p>
                     </CardContent>
                 </Card>
 
@@ -187,7 +201,7 @@ export default function SettlementIndex() {
                     </CardHeader>
                     <CardContent>
                         <div className="text-2xl font-bold text-green-700">
-                            Rp {settlements.data.filter(s => s.status === 'verified').reduce((acc, curr) => acc + Number(curr.total_amount || 0), 0).toLocaleString('id-ID')}
+                            Rp {stats.total_verified.toLocaleString('id-ID')}
                         </div>
                         <p className="text-xs text-green-600/70 mt-1">Total pelunasan sah</p>
                     </CardContent>
@@ -219,8 +233,7 @@ export default function SettlementIndex() {
                                     {debtSummary.length > 0 ? debtSummary.map((row, idx) => (
                                         <tr key={`${row.buyer_id}-${idx}`} className="hover:bg-muted/30 transition-colors">
                                             <td className="p-3">
-                                                <div className="font-medium">{row.buyer.username}</div>
-                                                <div className="text-xs text-muted-foreground">{row.buyer.branch_name || 'No Branch'}</div>
+                                                <div className="font-bold uppercase tracking-tight">{row.buyer.branch_name || row.buyer.username}</div>
                                             </td>
                                             <td className="p-3">
                                                 <Badge variant="secondary" className="font-bold">
@@ -276,9 +289,8 @@ export default function SettlementIndex() {
                                     {settlements.data.length > 0 ? settlements.data.map((item) => (
                                         <tr key={item.id} className="hover:bg-muted/30 transition-colors">
                                             <td className="p-3">
-                                                <div className="font-medium">{item.buyer.username}</div>
-                                                <div className="text-xs text-muted-foreground">{new Date(item.start_date).toLocaleDateString()} - {new Date(item.end_date).toLocaleDateString()}</div>
-                                                <div className="text-[10px] uppercase text-muted-foreground mt-1">Processed BY: {item.admin.username}</div>
+                                                <div className="font-bold uppercase tracking-tight">{item.buyer.branch_name || item.buyer.username}</div>
+                                                <div className="text-xs text-muted-foreground font-medium">{new Date(item.start_date).toLocaleDateString('id-ID', { month: 'short', year: 'numeric' })} - {new Date(item.end_date).toLocaleDateString('id-ID', { month: 'short', year: 'numeric' })}</div>
                                             </td>
                                             <td className="p-3 font-semibold">
                                                 Rp {parseFloat(item.total_amount).toLocaleString('id-ID')}
@@ -306,9 +318,14 @@ export default function SettlementIndex() {
                                                         <ExternalLink className="h-4 w-4 text-muted-foreground" />
                                                     </a>
                                                     {isSuperAdmin && item.status === 'paid' && (
-                                                        <Button size="icon" variant="outline" className="h-8 w-8 text-green-600 border-green-200 hover:bg-green-50" onClick={() => handleVerify(item.id)}>
-                                                            <CheckCircle className="h-4 w-4" />
-                                                        </Button>
+                                                        <div className="flex items-center gap-1">
+                                                            <Button size="icon" variant="outline" className="h-8 w-8 text-green-600 border-green-200 hover:bg-green-50" onClick={() => handleVerify(item.id)} title="Verifikasi">
+                                                                <CheckCircle className="h-4 w-4" />
+                                                            </Button>
+                                                            <Button size="icon" variant="outline" className="h-8 w-8 text-red-600 border-red-200 hover:bg-red-50" onClick={() => handleCancel(item.id)} title="Batalkan">
+                                                                <Trash2 className="h-4 w-4" />
+                                                            </Button>
+                                                        </div>
                                                     )}
                                                 </div>
                                             </td>

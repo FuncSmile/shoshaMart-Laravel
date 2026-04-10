@@ -25,6 +25,7 @@ class ProductResource extends JsonResource
             'sku' => $this->sku,
             'image_url' => $this->image_url,
             'satuan_barang' => $this->satuan_barang,
+            'category' => $this->category,
             'stock' => $this->stock,
             'base_price' => $this->when($canSeeDetailedPrices, $this->base_price),
             'display_price' => $this->display_price,

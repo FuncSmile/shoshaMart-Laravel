@@ -19,17 +19,21 @@ class DebtService
      */
     public function getDebtSummary(string $startDate, string $endDate, ?string $tierId = null)
     {
+        $isSqlite = DB::connection()->getDriverName() === 'sqlite';
+        $yearExpr = $isSqlite ? 'strftime("%Y", created_at)' : 'YEAR(created_at)';
+        $monthExpr = $isSqlite ? 'strftime("%m", created_at)' : 'MONTH(created_at)';
+
         $query = Order::query()
             ->where('status', Order::STATUS_DEBT)
             ->whereNull('settlement_id')
             ->whereBetween('created_at', [$startDate.' 00:00:00', $endDate.' 23:59:59'])
-            ->selectRaw('
+            ->selectRaw("
                 buyer_id, 
-                YEAR(created_at) as year, 
-                MONTH(created_at) as month, 
+                $yearExpr as year, 
+                $monthExpr as month, 
                 SUM(total_amount) as orders_sum_total_amount,
                 COUNT(id) as orders_count
-            ')
+            ")
             ->groupBy('buyer_id', 'year', 'month')
             ->with('buyer:id,username,branch_name,tier_id');
 
@@ -44,7 +48,7 @@ class DebtService
             // Useful for the "Settle" (Bayar) date range
             $row->month_start = $carbon->startOfMonth()->toDateString();
             $row->month_end = $carbon->endOfMonth()->toDateString();
-            
+
             return $row;
         });
     }
@@ -164,5 +168,37 @@ class DebtService
         }
 
         return $response->json('url');
+    }
+
+    /**
+     * Create a manual settlement record (Shortcut bypass).
+     */
+    public function createManualSettlement(User $admin, Order $order): Settlement
+    {
+        return DB::transaction(function () use ($admin, $order) {
+            $settlement = Settlement::create([
+                'id' => (string) Str::uuid(),
+                'buyer_id' => $order->buyer_id,
+                'admin_id' => $admin->id,
+                'total_amount' => $order->total_amount,
+                'start_date' => $order->created_at->toDateString(),
+                'end_date' => $order->created_at->toDateString(),
+                'proof_of_payment' => 'MANUAL_BYPASS',
+                'storage_provider' => 'manual',
+                'status' => 'paid',
+            ]);
+
+            $order->update([
+                'status' => Order::STATUS_PAID,
+                'settlement_id' => $settlement->id,
+            ]);
+
+            $order->histories()->create([
+                'user_id' => $admin->id,
+                'message' => "Pesanan telah dilunasi secara manual oleh Superadmin (Settlement: {$settlement->id})",
+            ]);
+
+            return $settlement;
+        });
     }
 }
