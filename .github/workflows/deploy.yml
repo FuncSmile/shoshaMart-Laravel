@@ -35,6 +35,8 @@ jobs:
         with:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           known_hosts: 'placeholder'
+      - name: Get Runner Public IP
+        run: echo "Runner Public IP:" && curl -s https://ifconfig.me && echo ""
 
       - name: Sync Files via Rsync
         run: |
