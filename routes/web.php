@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\OrderController;
+use App\Http\Controllers\OrderTypeController;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\ReportController;
@@ -42,6 +43,7 @@ Route::middleware(['auth'])->group(function () {
     Route::delete('/orders/{order}', [OrderController::class, 'destroy'])->name('orders.destroy');
     Route::get('/orders-bulk/invoice', [OrderController::class, 'bulkInvoice'])->name('orders.bulk-invoice');
     Route::get('/orders-report', [ReportController::class, 'exportOrders'])->name('orders.report');
+    Route::resource('order-types', OrderTypeController::class)->only(['store', 'update', 'destroy']);
 
     // Products API
     Route::get('/api/products', [ProductController::class, 'apiIndex'])->name('api.products');

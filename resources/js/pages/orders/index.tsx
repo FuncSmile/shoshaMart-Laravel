@@ -1,5 +1,8 @@
 import { Head, usePage, router, useForm } from '@inertiajs/react';
-import { ShoppingCart, Eye, CheckCircle, XCircle, Filter, Loader2, ArrowRight, Package, User, Clock, AlertCircle, Trash2, Search, Minus, Plus, Tag, Calendar, CreditCard } from 'lucide-react';
+import {
+    ShoppingCart, Eye, CheckCircle, XCircle, Filter, Loader2, ArrowRight, Package, User, Clock,
+    AlertCircle, Trash2, Search, Minus, Plus, Tag, Calendar, CreditCard, Pencil, Check, X
+} from 'lucide-react';
 import { useState, useEffect, useMemo } from 'react';
 import { OrderDetailModal } from '@/components/order-detail-modal';
 import { Badge } from '@/components/ui/badge';
@@ -36,7 +39,7 @@ interface Order {
 }
 
 export default function OrderIndex() {
-    const { orders, auth_role, filters, buyers, tiers, availableTypes } = usePage().props as any;
+    const { orders, auth_role, filters, buyers, tiers, availableTypes, orderTypes } = usePage().props as any;
     const [searchQuery, setSearchQuery] = useState(filters.search || '');
     const [statusFilter, setStatusFilter] = useState(filters.status || 'ALL');
     const [jenisPesananFilter, setJenisPesananFilter] = useState(filters.jenis_pesanan || 'ALL');
@@ -49,6 +52,8 @@ export default function OrderIndex() {
     const [isQuickPrintOpen, setIsQuickPrintOpen] = useState(false);
     const [isReportModalOpen, setIsReportModalOpen] = useState(false);
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+    const [isTypesModalOpen, setIsTypesModalOpen] = useState(false);
+    const [editingType, setEditingType] = useState<any>(null);
     const [availableProducts, setAvailableProducts] = useState<any[]>([]);
 
     const [quickPrintData, setQuickPrintData] = useState({
@@ -68,10 +73,14 @@ export default function OrderIndex() {
         reason: '',
     });
 
+    const typeForm = useForm({
+        name: '',
+    });
+
     const createOrderForm = useForm({
         buyer_id: '',
         nama_pemesan: '',
-        jenis_pesanan: 'awal bulan',
+        jenis_pesanan: (availableTypes?.[0] as string) || '',
         created_at: new Date().toISOString().split('T')[0],
         items: [] as { product_id: string, quantity: number, name?: string, sku?: string, price?: number }[]
     });
@@ -233,6 +242,14 @@ export default function OrderIndex() {
                         >
                             <Filter className="h-5 w-5 group-hover:rotate-12 transition-transform" />
                             EXPORT LAPORAN
+                        </Button>
+                        <Button
+                            onClick={() => setIsTypesModalOpen(true)}
+                            variant="outline"
+                            className="rounded-full border-2 border-emerald-500/20 hover:bg-emerald-500/5 text-emerald-600 font-black italic uppercase tracking-widest px-8 h-14 flex items-center gap-2 group"
+                        >
+                            <Tag className="h-5 w-5 group-hover:rotate-12 transition-transform" />
+                            PENGATURAN JENIS
                         </Button>
                         <Button
                             onClick={() => setIsQuickPrintOpen(true)}
@@ -895,32 +912,18 @@ url.searchParams.append('end_date', reportData.end_date);
                                         />
                                     </div>
 
-                                    <div className="grid grid-cols-2 gap-4">
-                                        <div className="space-y-2">
-                                            <Label className="text-[10px] font-black uppercase tracking-widest text-primary/60 px-1">Jenis Pesanan</Label>
-                                            <Select value={createOrderForm.data.jenis_pesanan} onValueChange={(val) => createOrderForm.setData('jenis_pesanan', val)}>
-                                                <SelectTrigger className="h-14 rounded-2xl border-2 border-primary/5 bg-background shadow-sm font-bold">
-                                                    <SelectValue />
-                                                </SelectTrigger>
-                                                <SelectContent className="rounded-xl border-none shadow-2xl">
-                                                    <SelectItem value="awal bulan">AKHIR BULAN</SelectItem>
-                                                    <SelectItem value="pertengahan bulan">PERTENGAHAN</SelectItem>
-                                                    <SelectItem value="Lembur">LEMBUR</SelectItem>
-                                                    <SelectItem value="tambahan bulan ini">TAMBAHAN</SelectItem>
-                                                    <SelectItem value="opening">OPENING</SelectItem>
-                                                    <SelectItem value="teknisi">TEKNISI</SelectItem>
-                                                </SelectContent>
-                                            </Select>
-                                        </div>
-                                        <div className="space-y-2">
-                                            <Label className="text-[10px] font-black uppercase tracking-widest text-primary/60 px-1">Tanggal</Label>
-                                            <Input
-                                                type="date"
-                                                value={createOrderForm.data.created_at}
-                                                onChange={e => createOrderForm.setData('created_at', e.target.value)}
-                                                className="h-14 rounded-2xl border-2 border-primary/5 bg-background shadow-sm font-bold px-4"
-                                            />
-                                        </div>
+                                    <div className="space-y-2">
+                                        <Label className="text-[10px] font-black uppercase tracking-widest text-primary/60 px-1">Jenis Pesanan</Label>
+                                        <Select value={createOrderForm.data.jenis_pesanan} onValueChange={(val) => createOrderForm.setData('jenis_pesanan', val)}>
+                                            <SelectTrigger className="h-14 rounded-2xl border-2 border-primary/5 bg-background shadow-sm font-bold">
+                                                <SelectValue />
+                                            </SelectTrigger>
+                                            <SelectContent className="rounded-xl border-none shadow-2xl">
+                                                {(availableTypes as string[]).map(type => (
+                                                    <SelectItem key={type} value={type} className="capitalize">{type}</SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
                                     </div>
                                 </div>
                             </div>
@@ -1164,6 +1167,127 @@ url.searchParams.append('end_date', reportData.end_date);
                                 SIMPAN PESANAN
                             </Button>
                         </div>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Modal Manajemen Jenis Pesanan */}
+            <Dialog open={isTypesModalOpen} onOpenChange={(open) => {
+                setIsTypesModalOpen(open);
+                if (!open) {
+                    setEditingType(null);
+                    typeForm.reset();
+                }
+            }}>
+                <DialogContent className="max-w-xl p-0 overflow-hidden border-none shadow-3xl rounded-[2.5rem] bg-background/95 backdrop-blur-3xl">
+                    <DialogHeader className="p-8 pb-4 relative overflow-hidden">
+                        <div className="flex items-center gap-4 relative z-10">
+                            <div className="h-14 w-14 rounded-2xl bg-emerald-500/10 flex items-center justify-center border border-emerald-500/20">
+                                <Tag className="h-7 w-7 text-emerald-600" />
+                            </div>
+                            <div>
+                                <DialogTitle className="text-2xl font-[1000] italic tracking-tighter text-foreground uppercase">
+                                    PENGATURAN JENIS
+                                </DialogTitle>
+                                <DialogDescription className="text-xs font-bold text-muted-foreground uppercase tracking-widest leading-none">
+                                    Kelola daftar pilihan jenis pesanan
+                                </DialogDescription>
+                            </div>
+                        </div>
+                    </DialogHeader>
+
+                    <div className="px-8 py-4 space-y-6">
+                        {/* Form Input/Edit */}
+                        <div className="p-6 rounded-3xl bg-emerald-500/5 border-2 border-emerald-500/10 space-y-4">
+                            <div className="space-y-2">
+                                <Label className="text-[10px] font-black uppercase tracking-widest text-emerald-600 px-1">
+                                    {editingType ? 'EDIT JENIS PESANAN' : 'TAMBAH JENIS BARU'}
+                                </Label>
+                                <div className="flex gap-2">
+                                    <Input
+                                        placeholder="Contoh: awal bulan, teknisi, dll"
+                                        value={typeForm.data.name}
+                                        onChange={e => typeForm.setData('name', e.target.value)}
+                                        className="h-14 rounded-2xl border-2 border-emerald-500/10 bg-background shadow-sm font-bold px-4"
+                                    />
+                                    <Button
+                                        onClick={() => {
+                                            if (editingType) {
+                                                typeForm.patch(`/order-types/${editingType.id}`, {
+                                                    onSuccess: () => {
+                                                        setEditingType(null);
+                                                        typeForm.reset();
+                                                    }
+                                                });
+                                            } else {
+                                                typeForm.post('/order-types', {
+                                                    onSuccess: () => typeForm.reset()
+                                                });
+                                            }
+                                        }}
+                                        disabled={typeForm.processing || !typeForm.data.name}
+                                        className="h-14 aspect-square rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg shadow-emerald-200"
+                                    >
+                                        {typeForm.processing ? <Loader2 className="h-5 w-5 animate-spin" /> : (editingType ? <Check className="h-6 w-6" /> : <Plus className="h-6 w-6" />)}
+                                    </Button>
+                                    {editingType && (
+                                        <Button
+                                            onClick={() => {
+                                                setEditingType(null);
+                                                typeForm.reset();
+                                            }}
+                                            variant="ghost"
+                                            className="h-14 aspect-square rounded-2xl text-destructive hover:bg-destructive/10"
+                                        >
+                                            <X className="h-5 w-5" />
+                                        </Button>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* List Types */}
+                        <div className="space-y-2 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
+                            {(orderTypes as any[]).map((type) => (
+                                <div key={type.id} className="flex items-center justify-between p-4 rounded-2xl border-2 border-primary/5 hover:border-emerald-500/30 hover:bg-emerald-500/[0.02] transition-all group">
+                                    <p className="font-bold text-foreground capitalize tracking-tight px-2">{type.name}</p>
+                                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                        <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            onClick={() => {
+                                                setEditingType(type);
+                                                typeForm.setData('name', type.name);
+                                            }}
+                                            className="h-10 w-10 rounded-xl text-primary/40 hover:text-primary hover:bg-primary/10"
+                                        >
+                                            <Pencil className="h-4 w-4" />
+                                        </Button>
+                                        <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            onClick={() => {
+                                                if (confirm('Hapus jenis pesanan ini?')) {
+                                                    router.delete(`/order-types/${type.id}`);
+                                                }
+                                            }}
+                                            className="h-10 w-10 rounded-xl text-destructive/40 hover:text-destructive hover:bg-destructive/10"
+                                        >
+                                            <Trash2 className="h-4 w-4" />
+                                        </Button>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+
+                    <DialogFooter className="p-8 bg-background/50 border-t-2 border-primary/5">
+                        <Button
+                            onClick={() => setIsTypesModalOpen(false)}
+                            className="w-full h-14 rounded-full font-black italic tracking-widest uppercase border-2 border-primary/10 hover:bg-primary/5 text-primary"
+                        >
+                            TUTUP PENGATURAN
+                        </Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>

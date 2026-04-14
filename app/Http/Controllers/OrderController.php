@@ -7,6 +7,7 @@ use App\Http\Requests\StoreOrderRequest;
 use App\Http\Requests\UpdateOrderRequest;
 use App\Http\Resources\OrderResource;
 use App\Models\Order;
+use App\Models\OrderType;
 use App\Models\Tier;
 use App\Models\User;
 use App\Services\DebtService;
@@ -100,7 +101,8 @@ class OrderController extends Controller
             ),
             'buyers' => $user->isSuperAdmin() ? User::where('role', 'BUYER')->select(['id', 'username', 'branch_name', 'tier_id'])->get() : [],
             'tiers' => Tier::select(['id', 'name'])->get(),
-            'availableTypes' => Order::TYPES,
+            'availableTypes' => OrderType::orderBy('name')->pluck('name'),
+            'orderTypes' => OrderType::orderBy('name')->get(),
         ]);
     }
 

@@ -8,6 +8,7 @@ use App\Http\Resources\ProductResource;
 use App\Http\Resources\StockLogResource;
 use App\Models\Order;
 use App\Models\OrderItem;
+use App\Models\OrderType;
 use App\Models\Product;
 use App\Models\Tier;
 use App\Models\User;
@@ -61,6 +62,7 @@ class ProductController extends Controller
             'tiers' => $canManage ? Tier::select(['id', 'name'])->get() : [],
             'auth_role' => $user?->role,
             'filters' => $request->only(['search']),
+            'availableTypes' => OrderType::orderBy('name')->pluck('name'),
         ]);
     }
 

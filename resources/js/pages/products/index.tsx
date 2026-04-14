@@ -152,7 +152,7 @@ function SortableProductItem({ product }: { product: Product }) {
 }
 
 export default function ProductsIndex() {
-    const { products, auth_role, filters, tiers = [] } = usePage().props as any;
+    const { products, auth_role, filters, tiers = [], availableTypes = [] } = usePage().props as any;
     const isSuperAdmin = auth_role === 'SUPERADMIN';
     const isWarehouse = auth_role === 'WAREHOUSE';
     const isBuyer = auth_role === 'BUYER';
@@ -187,7 +187,7 @@ export default function ProductsIndex() {
     const cart = useForm({
         items: (typeof window !== 'undefined' ? JSON.parse(localStorage.getItem('shosha_cart_items') || '[]') : []),
         nama_pemesan: '',
-        jenis_pesanan: 'awal bulan',
+        jenis_pesanan: (availableTypes?.[0] as string) || 'awal bulan',
         created_at: new Date().toISOString().split('T')[0],
     });
 
@@ -848,40 +848,22 @@ return null;
                                 </div>
 
                                 <div className="space-y-2">
-                                    <Label htmlFor="jenis_pesanan" className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Jenis Pesanan</Label>
-                                    <Select
-                                        value={cart.data.jenis_pesanan}
-                                        onValueChange={val => cart.setData('jenis_pesanan', val)}
-                                    >
-                                        <SelectTrigger className="h-11 rounded-xl border-2 font-bold focus:ring-primary/20">
-                                            <SelectValue placeholder="Pilih Jenis Pesanan" />
+                                    <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-1 block px-1">Jenis Pesanan</Label>
+                                    <Select value={cart.data.jenis_pesanan} onValueChange={(val) => cart.setData('jenis_pesanan', val)}>
+                                        <SelectTrigger className="h-14 rounded-2xl border-2 border-primary/10 bg-background shadow-sm font-bold">
+                                            <SelectValue />
                                         </SelectTrigger>
-                                        <SelectContent className="rounded-xl border-2">
-                                            <SelectItem value="awal bulan" className="font-bold uppercase text-[10px] tracking-widest">Akhir Bulan</SelectItem>
-                                            <SelectItem value="pertengahan bulan" className="font-bold uppercase text-[10px] tracking-widest">Pertengahan Bulan</SelectItem>
-                                            <SelectItem value="Lembur" className="font-bold uppercase text-[10px] tracking-widest">Lembur</SelectItem>
-                                            <SelectItem value="tambahan bulan ini" className="font-bold uppercase text-[10px] tracking-widest">Tambahan Bulan Ini</SelectItem>
+                                        <SelectContent className="rounded-xl border-none shadow-2xl">
+                                            {(availableTypes as string[]).map(type => (
+                                                <SelectItem key={type} value={type} className="capitalize font-bold">{type}</SelectItem>
+                                            ))}
                                         </SelectContent>
                                     </Select>
                                     {cart.errors.jenis_pesanan && <p className="text-destructive text-[10px] font-bold italic">{cart.errors.jenis_pesanan}</p>}
                                 </div>
 
-                                <div className="space-y-2 p-4 rounded-2xl bg-primary/5 border-2 border-primary/10">
-                                    <Label htmlFor="created_at" className="text-[10px] font-black uppercase tracking-widest text-primary flex items-center gap-2">
-                                        <Clock className="h-3 w-3" />
-                                        Tanggal Pesanan
-                                    </Label>
-                                    <Input
-                                        id="created_at"
-                                        type="date"
-                                        value={cart.data.created_at}
-                                        onChange={e => cart.setData('created_at', e.target.value)}
-                                        className="font-bold h-11 rounded-xl border-2 border-primary/20 focus:border-primary/50 bg-white"
-                                    />
-                                    {cart.errors.created_at && <p className="text-destructive text-[10px] font-bold italic">{cart.errors.created_at}</p>}
                                 </div>
                             </div>
-                        </div>
 
                         <div className="p-6 md:p-8 bg-muted/10 border-t shrink-0 space-y-4">
                             <div className="p-4 rounded-2xl bg-primary/5 border-2 border-primary/10">
