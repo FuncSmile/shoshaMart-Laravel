@@ -26,6 +26,7 @@ class OrderResource extends JsonResource
             'nama_pemesan' => $this->nama_pemesan,
             'jenis_pesanan' => $this->jenis_pesanan,
             'is_printed' => (bool) $this->is_printed,
+            'printed_at' => $this->printed_at,
             'tier_id' => $this->tier_id,
             'created_at' => $this->created_at->toISOString(),
             'buyer' => [

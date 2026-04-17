@@ -1,5 +1,5 @@
 import { Link, usePage, router } from '@inertiajs/react';
-import { BookOpen, FolderGit2, LayoutGrid, ShoppingBag, Users, ShoppingCart, History, CreditCard } from 'lucide-react';
+import { BookOpen, FolderGit2, LayoutGrid, ShoppingBag, Users, ShoppingCart, History, CreditCard, Printer } from 'lucide-react';
 import { useEffect } from 'react';
 import AppLogo from '@/components/app-logo';
 import { NavFooter } from '@/components/nav-footer';
@@ -16,7 +16,7 @@ import {
     useSidebar,
 } from '@/components/ui/sidebar';
 import { dashboard } from '@/routes';
-import { index as ordersIndex } from '@/routes/orders/index';
+import { index as ordersIndex, printIndex as printOrdersIndex } from '@/routes/orders/index';
 import { index as productsIndex } from '@/routes/products/index';
 import { index as usersIndex } from '@/routes/users/index';
 import { index as stockLogsIndex } from '@/routes/stock-logs/index';
@@ -72,9 +72,25 @@ export function AppSidebar() {
         });
     }
 
-    if (user?.role === 'SUPERADMIN' || user?.role === 'ADMIN_TIER' || user?.role === 'WAREHOUSE') {
+    if (user?.role === 'SUPERADMIN' || user?.role === 'ADMIN_TIER') {
         mainNavItems.push({
             title: 'Kelola Pesanan',
+            href: ordersIndex.url(),
+            icon: ShoppingCart,
+            items: [
+                {
+                    title: 'Pesanan',
+                    href: ordersIndex.url(),
+                },
+                {
+                    title: 'Cetak Pesanan',
+                    href: printOrdersIndex.url(),
+                },
+            ],
+        });
+    } else if (user?.role === 'WAREHOUSE') {
+        mainNavItems.push({
+            title: 'Pesanan',
             href: ordersIndex.url(),
             icon: ShoppingCart,
         });

@@ -13,7 +13,16 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Pagination, SearchInput } from '@/components/ui/pagination';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { index as ordersIndex, approve as ordersApprove, reject as ordersReject, cancel as ordersCancel, destroy as ordersDestroy } from '@/routes/orders/index';
+import {
+    index as ordersIndex,
+    printIndex as printOrdersIndex,
+    invoice as ordersInvoice,
+    approve as ordersApprove,
+    reject as ordersReject,
+    destroy as ordersDestroy,
+    cancel as ordersCancel
+} from '@/routes/orders/index';
+import { Printer } from 'lucide-react';
 
 interface Order {
     id: string;
@@ -36,6 +45,7 @@ interface Order {
         can_reject: boolean;
     };
     is_printed: boolean;
+    printed_at?: string;
 }
 
 export default function OrderIndex() {
@@ -49,13 +59,17 @@ export default function OrderIndex() {
     const [isDetailOpen, setIsDetailOpen] = useState(false);
     const [rejectingOrder, setRejectingOrder] = useState<Order | null>(null);
     const [deletingOrder, setDeletingOrder] = useState<Order | null>(null);
+    const [isQuickPrintOpen, setIsQuickPrintOpen] = useState(false);
     const [isReportModalOpen, setIsReportModalOpen] = useState(false);
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
     const [isTypesModalOpen, setIsTypesModalOpen] = useState(false);
     const [editingType, setEditingType] = useState<any>(null);
     const [availableProducts, setAvailableProducts] = useState<any[]>([]);
 
-
+    const [quickPrintData, setQuickPrintData] = useState({
+        buyer_id: 'ALL',
+        jenis_pesanan: 'ALL'
+    });
 
     const [reportData, setReportData] = useState({
         jenis_pesanan: 'ALL',
@@ -99,7 +113,7 @@ export default function OrderIndex() {
                 endDate !== (filters.end_date || '');
 
             if (filtersChanged) {
-                router.get(ordersIndex.url(), currentFilters, {
+                router.get(printOrdersIndex.url(), currentFilters, {
                     preserveState: true,
                     preserveScroll: true,
                     replace: true
@@ -202,35 +216,22 @@ export default function OrderIndex() {
 
     return (
         <div className="flex flex-1 flex-col gap-8 p-6 md:p-8 lg:p-10 w-full max-w-7xl mx-auto animate-in fade-in slide-in-from-bottom-4 duration-700">
-            <Head title="Manajemen Pesanan" />
+            <Head title="Cetak Pesanan" />
 
             {/* Header Section */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
                 <div className="space-y-2">
                     <h1 className="text-4xl font-black tracking-tight bg-gradient-to-br from-foreground to-foreground/60 bg-clip-text text-transparent italic flex items-center gap-3">
-                        <ShoppingCart className="h-10 w-10 text-primary" />
-                        Manajemen Pesanan
+                        <Printer className="h-10 w-10 text-primary" />
+                        Cetak Pesanan
                     </h1>
                     <p className="text-muted-foreground text-lg font-medium">
-                        Pantau dan proses pesanan dari seluruh jaringan Shosha Mart.
+                        Cetak invoice pesanan B2B yang telah disetujui.
                     </p>
                 </div>
 
                 {auth_role === 'SUPERADMIN' && (
                     <div className="flex items-center gap-3">
-                        <Button
-                            onClick={() => {
-                                setIsCreateModalOpen(true);
-
-                                if (availableProducts.length === 0) {
-                                    fetch('/api/products').then(res => res.json()).then(setAvailableProducts);
-                                }
-                            }}
-                            className="rounded-full bg-emerald-600 hover:bg-emerald-700 text-white font-black italic uppercase tracking-widest px-8 h-14 shadow-2xl shadow-emerald-200 flex items-center gap-2 group"
-                        >
-                            <ShoppingCart className="h-5 w-5 group-hover:scale-110 transition-transform" />
-                            TAMBAH PESANAN
-                        </Button>
                         <Button
                             onClick={() => setIsReportModalOpen(true)}
                             variant="outline"
@@ -240,14 +241,12 @@ export default function OrderIndex() {
                             EXPORT LAPORAN
                         </Button>
                         <Button
-                            onClick={() => setIsTypesModalOpen(true)}
-                            variant="outline"
-                            className="rounded-full border-2 border-emerald-500/20 hover:bg-emerald-500/5 text-emerald-600 font-black italic uppercase tracking-widest px-8 h-14 flex items-center gap-2 group"
+                            onClick={() => setIsQuickPrintOpen(true)}
+                            className="rounded-full bg-primary hover:bg-primary/90 text-primary-foreground font-black italic uppercase tracking-widest px-8 h-14 shadow-2xl shadow-primary/20 flex items-center gap-2 group"
                         >
-                            <Tag className="h-5 w-5 group-hover:rotate-12 transition-transform" />
-                            PENGATURAN JENIS
+                            <Package className="h-5 w-5 group-hover:scale-110 transition-transform" />
+                            CETAK CEPAT
                         </Button>
-
                     </div>
                 )}
             </div>
@@ -368,15 +367,16 @@ export default function OrderIndex() {
                                                     <div className="font-black text-foreground text-sm flex items-center gap-1 uppercase tracking-tight">
                                                         #{order.id.slice(0, 8)}
                                                         {order.is_printed ? (
-                                                            <span title="Ter-cetak">
-                                                                <CheckCircle className="h-3.5 w-3.5 text-emerald-500 fill-emerald-500/10" />
-                                                            </span>
+                                                            <div className="ml-1 px-2 py-0.5 rounded-sm bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 flex flex-col justify-center">
+                                                                <span className="text-[8px] font-black uppercase tracking-widest whitespace-nowrap">Dicetak Pada:</span>
+                                                                <span className="text-[9px] font-bold">
+                                                                    {order.printed_at ? new Date(order.printed_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : 'Unknown'}
+                                                                </span>
+                                                            </div>
                                                         ) : (
-                                                            order.status === 'APPROVED' && (
-                                                                <Badge className="bg-amber-500/10 text-amber-500 border-amber-500/20 text-[8px] font-black italic px-1.5 py-0 h-4 uppercase tracking-tighter">
-                                                                    BELUM CETAK
-                                                                </Badge>
-                                                            )
+                                                            <Badge className="bg-amber-500/10 text-amber-500 border-amber-500/20 text-[8px] font-black italic px-1.5 py-0 h-4 uppercase tracking-tighter">
+                                                                BELUM CETAK
+                                                            </Badge>
                                                         )}
                                                     </div>
                                                     <Badge className="text-[10px] bg-primary/10 text-primary border-primary/20 font-black italic uppercase tracking-wider py-0.5 px-2 rounded-[0.4rem]">
@@ -423,62 +423,19 @@ export default function OrderIndex() {
                                                 </Button>
 
                                                 <div className="flex items-center gap-2 ml-2 border-l pl-2">
-                                                    {(order.permissions.can_approve || order.permissions.can_reject) && (
-                                                        <>
-                                                            {order.permissions.can_approve && (
-                                                                <Button
-                                                                    variant="default"
-                                                                    size="icon"
-                                                                    onClick={() => handleApprove(order.id)}
-                                                                    className="rounded-full bg-emerald-500 hover:bg-emerald-600 h-8 w-8 shadow-lg shadow-emerald-500/20"
-                                                                >
-                                                                    <CheckCircle className="h-4 w-4" />
-                                                                </Button>
-                                                            )}
-                                                            {order.permissions.can_reject && (
-                                                                <Button
-                                                                    variant="destructive"
-                                                                    size="icon"
-                                                                    onClick={() => setRejectingOrder(order)}
-                                                                    className="rounded-full h-8 w-8 shadow-lg shadow-destructive/20"
-                                                                >
-                                                                    <XCircle className="h-4 w-4" />
-                                                                </Button>
-                                                            )}
-                                                        </>
-                                                    )}
-
-                                                    {order.permissions.can_cancel && (
-                                                        <Button
-                                                            variant="outline"
-                                                            size="sm"
-                                                            onClick={() => handleCancel(order.id)}
-                                                            className="rounded-full h-8 text-[10px] font-black uppercase text-destructive hover:bg-destructive/10"
-                                                        >
-                                                            Batal
-                                                        </Button>
-                                                    )}
-
-                                                    {order.status === 'APPROVED' && auth_role === 'SUPERADMIN' && (
+                                                    {auth_role === 'SUPERADMIN' && (
                                                         <Button
                                                             variant="default"
                                                             size="sm"
-                                                            onClick={() => handleMarkAsPaid(order.id)}
-                                                            className="rounded-full h-8 text-[10px] font-black uppercase bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg shadow-emerald-500/20"
+                                                            onClick={(e) => {
+                                                                e.preventDefault();
+                                                                window.open(ordersInvoice.url(order.id), '_blank');
+                                                                setTimeout(() => router.reload({ only: ['orders'] }), 1000);
+                                                            }}
+                                                            className="rounded-full h-8 px-4 text-[10px] font-black uppercase bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg"
                                                         >
-                                                            <CreditCard className="h-3 w-3 mr-1" />
-                                                            Bayar Lunas
-                                                        </Button>
-                                                    )}
-
-                                                    {auth_role === 'SUPERADMIN' && (
-                                                        <Button
-                                                            variant="ghost"
-                                                            size="icon"
-                                                            onClick={() => setDeletingOrder(order)}
-                                                            className="rounded-full h-8 w-8 text-destructive hover:bg-destructive/10"
-                                                        >
-                                                            <Trash2 className="h-4 w-4" />
+                                                            <Printer className="h-3 w-3 mr-1" />
+                                                            Cetak
                                                         </Button>
                                                     )}
                                                 </div>
@@ -577,6 +534,94 @@ export default function OrderIndex() {
                                 onClick={() => deletingOrder && handleDelete(deletingOrder.id)}
                             >
                                 YA, HAPUS PERMANEN
+                            </Button>
+                        </DialogFooter>
+                    </div>
+                </DialogContent>
+            </Dialog>
+
+            {/* Quick Print Modal */}
+            <Dialog open={isQuickPrintOpen} onOpenChange={setIsQuickPrintOpen}>
+                <DialogContent className="rounded-[2.5rem] p-0 border-none shadow-2xl overflow-hidden sm:max-w-md">
+                    <DialogHeader className="p-8 pb-0">
+                        <DialogTitle className="text-2xl font-black italic flex items-center gap-2 tracking-tight uppercase">
+                            <Package className="h-6 w-6 text-primary" />
+                            Cetak Cepat (Approved)
+                        </DialogTitle>
+                        <DialogDescription className="font-bold text-muted-foreground text-[10px] uppercase tracking-widest">
+                            Pilih filter untuk mencetak banyak dokumen sekaligus.
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    <div className="p-8 space-y-6">
+                        <div className="space-y-4">
+                            <div className="space-y-2">
+                                <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Kategori Cabang</Label>
+                                <Select
+                                    value={quickPrintData.buyer_id}
+                                    onValueChange={(val) => setQuickPrintData(prev => ({ ...prev, buyer_id: val }))}
+                                >
+                                    <SelectTrigger className="h-12 rounded-2xl border-2 font-bold focus:ring-primary/20 bg-muted/30">
+                                        <SelectValue placeholder="Pilih Cabang" />
+                                    </SelectTrigger>
+                                    <SelectContent className="rounded-2xl border-none shadow-2xl">
+                                        <SelectItem value="ALL" className="font-bold">SEMUA CABANG</SelectItem>
+                                        {buyers?.map((buyer: any) => (
+                                            <SelectItem key={buyer.id} value={buyer.id} className="font-bold">
+                                                {buyer.branch_name || buyer.username}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+
+                            <div className="space-y-2">
+                                <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Jenis Pesanan</Label>
+                                <Select
+                                    value={quickPrintData.jenis_pesanan}
+                                    onValueChange={(val) => setQuickPrintData(prev => ({ ...prev, jenis_pesanan: val }))}
+                                >
+                                    <SelectTrigger className="h-12 rounded-2xl border-2 font-bold focus:ring-primary/20 bg-muted/30">
+                                        <SelectValue placeholder="Pilih Jenis" />
+                                    </SelectTrigger>
+                                    <SelectContent className="rounded-2xl border-none shadow-2xl">
+                                        <SelectItem value="ALL" className="font-bold">SEMUA JENIS</SelectItem>
+                                        <SelectItem value="awal bulan" className="font-bold">AWAL BULAN</SelectItem>
+                                        <SelectItem value="pertengahan bulan" className="font-bold">PERTENGAHAN BULAN</SelectItem>
+                                        <SelectItem value="Lembur" className="font-bold">LEMBUR</SelectItem>
+                                        <SelectItem value="tambahan bulan ini" className="font-bold">TAMBAHAN BULAN INI</SelectItem>
+                                        <SelectItem value="opening" className="font-bold">OPENING</SelectItem>
+                                        <SelectItem value="teknisi" className="font-bold">TEKNISI</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                        </div>
+
+                        <div className="bg-primary/5 p-4 rounded-2xl border-2 border-primary/10">
+                            <p className="text-[10px] font-bold text-primary italic leading-relaxed text-center">
+                                Sistem hanya akan mencetak pesanan dengan status <span className="underline">APPROVED</span> yang sesuai dengan filter di atas.
+                            </p>
+                        </div>
+
+                        <DialogFooter className="flex-col sm:flex-row gap-3">
+                            <Button
+                                variant="ghost"
+                                className="rounded-full font-black italic uppercase text-xs tracking-widest"
+                                onClick={() => setIsQuickPrintOpen(false)}
+                            >
+                                Batal
+                            </Button>
+                            <Button
+                                className="flex-1 rounded-full h-12 font-black italic uppercase text-xs tracking-widest shadow-lg shadow-primary/20"
+                                onClick={() => {
+                                    const url = new URL(window.location.origin + '/orders-bulk/invoice');
+                                    url.searchParams.append('buyer_id', quickPrintData.buyer_id);
+                                    url.searchParams.append('jenis_pesanan', quickPrintData.jenis_pesanan);
+                                    window.open(url.toString(), '_blank');
+                                    setIsQuickPrintOpen(false);
+                                }}
+                            >
+                                <ArrowRight className="h-4 w-4 mr-2" /> CETAK SEKARANG
                             </Button>
                         </DialogFooter>
                     </div>

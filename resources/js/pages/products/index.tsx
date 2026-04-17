@@ -183,11 +183,25 @@ export default function ProductsIndex() {
         return () => clearTimeout(timer);
     }, [search, filters.search]);
 
+    const getDefaultOrderType = (types: string[]) => {
+        if (!types.length) return 'awal bulan';
+        const today = new Date().getDate();
+        
+        // Logic: 28-31: akhir bulan, 15-17: pertengahan bulan, else: tambahan bulan ini
+        if (today >= 28) {
+            return types.find(t => t.toLowerCase() === 'akhir bulan') || types[0];
+        } else if (today >= 15 && today <= 17) {
+            return types.find(t => t.toLowerCase() === 'pertengahan bulan') || types[0];
+        } else {
+            return types.find(t => t.toLowerCase() === 'tambahan bulan ini') || types[0];
+        }
+    };
+
     // --- Buyer Cart Logic ---
     const cart = useForm({
         items: (typeof window !== 'undefined' ? JSON.parse(localStorage.getItem('shosha_cart_items') || '[]') : []),
         nama_pemesan: '',
-        jenis_pesanan: (availableTypes?.[0] as string) || 'awal bulan',
+        jenis_pesanan: getDefaultOrderType(availableTypes),
         created_at: new Date().toISOString().split('T')[0],
     });
 
@@ -201,6 +215,13 @@ export default function ProductsIndex() {
 
     const [isCheckoutModalOpen, setIsCheckoutModalOpen] = useState(false);
     const [isCartSheetOpen, setIsCartSheetOpen] = useState(false);
+
+    // Auto-select jenis pesanan when modal opens
+    useEffect(() => {
+        if (isCheckoutModalOpen) {
+            cart.setData('jenis_pesanan', getDefaultOrderType(availableTypes));
+        }
+    }, [isCheckoutModalOpen]);
 
     const handleQuantityChange = (product_id: string, quantity: number) => {
         const existingItem = cart.data.items.find(item => item.product_id === product_id);
@@ -859,6 +880,14 @@ return null;
                                             ))}
                                         </SelectContent>
                                     </Select>
+                                    {cart.data.jenis_pesanan?.toLowerCase() === 'tambahan bulan ini' && (
+                                        <div className="mt-2 p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 animate-in fade-in slide-in-from-top-1 duration-300">
+                                            <p className="text-[10px] font-bold text-amber-700 dark:text-amber-400 leading-relaxed uppercase tracking-tight">
+                                                <Info className="h-3 w-3 inline-block mr-1 -mt-0.5" />
+                                                Pesanan ini bukan untuk akhir bulan ataupun pertengahan bulan. Apakah Anda sudah konfirmasi ke leader Anda untuk pengantarannya?
+                                            </p>
+                                        </div>
+                                    )}
                                     {cart.errors.jenis_pesanan && <p className="text-destructive text-[10px] font-bold italic">{cart.errors.jenis_pesanan}</p>}
                                 </div>
 

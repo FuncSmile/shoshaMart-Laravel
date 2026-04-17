@@ -106,6 +106,67 @@ class OrderController extends Controller
         ]);
     }
 
+    public function printIndex(Request $request)
+    {
+        /** @var User $user */
+        $user = $request->user();
+
+        // Cetak Pesanan is only accessible by SUPERADMIN and ADMIN_TIER
+        if (! $user->isSuperAdmin() && ! $user->isAdminTier()) {
+            abort(403);
+        }
+
+        $search = $request->input('search');
+        $jenis_pesanan = $request->input('jenis_pesanan', 'ALL');
+
+        // We only consider APPROVED orders for the Cetak Pesanan page.
+        $query = Order::query()
+            ->select(['id', 'order_number', 'status', 'total_amount', 'tier_id', 'buyer_id', 'nama_pemesan', 'jenis_pesanan', 'is_printed', 'printed_at', 'created_at'])
+            ->with([
+                'buyer:id,username,branch_name,phone',
+                'tier:id,name',
+                'histories.user:id,username',
+            ])
+            ->where('status', Order::STATUS_DEBT); // 'APPROVED'
+
+        if ($user->isAdminTier()) {
+            if (empty($user->tier_id)) {
+                $query->whereRaw('1 = 0');
+            } else {
+                // ADMIN_TIER only sees printed orders for their tier
+                $query->where('tier_id', $user->tier_id)
+                    ->where('is_printed', true);
+            }
+        }
+
+        if ($jenis_pesanan && $jenis_pesanan !== 'ALL') {
+            $query->where('jenis_pesanan', $jenis_pesanan);
+        }
+
+        if ($search) {
+            $query->where(function ($q) use ($search) {
+                $q->where('order_number', 'like', "%{$search}%")
+                    ->orWhere('nama_pemesan', 'like', "%{$search}%")
+                    ->orWhereHas('buyer', function ($sq) use ($search) {
+                        $sq->where('username', 'like', "%{$search}%")
+                            ->orWhere('branch_name', 'like', "%{$search}%");
+                    });
+            });
+        }
+
+        $orders = $query->latest()->paginate(10)->withQueryString();
+
+        return Inertia::render('orders/print-index', [
+            'orders' => OrderResource::collection($orders),
+            'auth_role' => $user->role,
+            'filters' => $request->only(['search', 'jenis_pesanan']),
+            'buyers' => $user->isSuperAdmin() ? User::where('role', 'BUYER')->select(['id', 'username', 'branch_name', 'tier_id'])->get() : [],
+            'tiers' => Tier::select(['id', 'name'])->get(),
+            'availableTypes' => OrderType::orderBy('name')->pluck('name'),
+            'orderTypes' => OrderType::orderBy('name')->get(),
+        ]);
+    }
+
     public function show(Order $order)
     {
         $order->load(['buyer:id,username,branch_name,phone', 'items.product:id,name,sku', 'tier:id,name', 'histories.user:id,username']);
