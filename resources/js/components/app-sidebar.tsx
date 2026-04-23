@@ -81,10 +81,12 @@ export function AppSidebar() {
                 {
                     title: 'Pesanan',
                     href: ordersIndex.url(),
+                    icon: ShoppingCart,
                 },
                 {
                     title: 'Cetak Pesanan',
                     href: printOrdersIndex.url(),
+                    icon: Printer,
                 },
             ],
         });

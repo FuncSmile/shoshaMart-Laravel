@@ -14,7 +14,8 @@ return new class extends Migration
      */
     public function up(): void
     {
-        $orphanedOrders = Order::where('status', 'paid')
+        $orphanedOrders = DB::table('orders')
+            ->where('status', 'paid')
             ->whereNull('settlement_id')
             ->get();
 
@@ -23,28 +24,38 @@ return new class extends Migration
         }
 
         // We get the first superadmin to attribute the manual bypass to
-        $superadmin = User::where('role', 'SUPERADMIN')->first();
+        $superadmin = DB::table('users')->where('role', 'SUPERADMIN')->first();
 
         foreach ($orphanedOrders as $order) {
             DB::transaction(function () use ($order, $superadmin) {
+                $orderId = $order->id;
+                $createdAt = \Illuminate\Support\Carbon::parse($order->created_at);
+
                 // Create a settlement for this order
-                $settlement = Settlement::create([
-                    'id' => (string) Str::uuid(),
+                $settlementId = (string) Str::uuid();
+                DB::table('settlements')->insert([
+                    'id' => $settlementId,
                     'buyer_id' => $order->buyer_id,
-                    'admin_id' => $superadmin ? $superadmin->id : $order->buyer_id, // Fallback if no superadmin found
+                    'admin_id' => $superadmin ? $superadmin->id : $order->buyer_id,
                     'total_amount' => $order->total_amount,
-                    'start_date' => $order->created_at->toDateString(),
-                    'end_date' => $order->created_at->toDateString(),
+                    'start_date' => $createdAt->toDateString(),
+                    'end_date' => $createdAt->toDateString(),
                     'proof_of_payment' => 'MANUAL_BYPASS_PATCH',
                     'storage_provider' => 'manual',
                     'status' => 'paid',
+                    'created_at' => now(),
+                    'updated_at' => now(),
                 ]);
 
-                $order->update(['settlement_id' => $settlement->id]);
+                DB::table('orders')->where('id', $orderId)->update(['settlement_id' => $settlementId]);
 
-                $order->histories()->create([
+                DB::table('order_histories')->insert([
+                    'id' => (string) Str::uuid(),
+                    'order_id' => $orderId,
                     'user_id' => $superadmin ? $superadmin->id : null,
-                    'message' => "Pesanan disinkronkan ke Catatan Pelunasan via Data Patch (Settlement: {$settlement->id})",
+                    'message' => "Pesanan disinkronkan ke Catatan Pelunasan via Data Patch (Settlement: {$settlementId})",
+                    'created_at' => now(),
+                    'updated_at' => now(),
                 ]);
             });
         }
@@ -56,12 +67,12 @@ return new class extends Migration
     public function down(): void
     {
         // Delete settlements created by the patch
-        $settlements = Settlement::where('proof_of_payment', 'MANUAL_BYPASS_PATCH')->get();
+        $settlements = DB::table('settlements')->where('proof_of_payment', 'MANUAL_BYPASS_PATCH')->get();
 
         foreach ($settlements as $settlement) {
             DB::transaction(function () use ($settlement) {
-                Order::where('settlement_id', $settlement->id)->update(['settlement_id' => null]);
-                $settlement->delete();
+                DB::table('orders')->where('settlement_id', $settlement->id)->update(['settlement_id' => null]);
+                DB::table('settlements')->where('id', $settlement->id)->delete();
             });
         }
     }

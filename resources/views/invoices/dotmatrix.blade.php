@@ -6,12 +6,13 @@
     <title>Invoice {{ $order->order_number }}</title>
     <style>
         @page {
+            size: 22.80cm 14.00cm;
             margin: 0;
         }
 
         body {
             font-family: 'Courier', monospace;
-            font-size: 9pt;
+            font-size: 12pt;
             margin: 0.3cm;
             color: #000;
         }
@@ -26,7 +27,7 @@
         .info-table {
             width: 100%;
             margin-bottom: 10px;
-            font-size: 9pt;
+            font-size: 10pt;
         }
 
         .info-table td {
@@ -37,7 +38,7 @@
             width: 100%;
             border-collapse: collapse;
             margin-bottom: 10px;
-            font-size: 9.5pt;
+            font-size: 11pt;
         }
 
         .items-table th {

@@ -197,7 +197,7 @@ class OrderController extends Controller
             });
         }
 
-        $orders = $query->latest()->paginate(10)->withQueryString();
+        $orders = $query->orderBy('is_printed', 'asc')->latest()->paginate(10)->withQueryString();
 
         return Inertia::render('orders/print-index', [
             'orders' => OrderResource::collection($orders),

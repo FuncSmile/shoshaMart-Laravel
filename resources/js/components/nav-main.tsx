@@ -32,19 +32,14 @@ export function NavMain({ items = [] }: { items: NavItem[] }) {
 
                     if (hasChildren) {
                         return (
-                            <Collapsible key={item.title} asChild defaultOpen={isActive}>
+                            <Collapsible key={item.title} asChild defaultOpen={isActive} className="group/collapsible">
                                 <SidebarMenuItem>
-                                    <SidebarMenuButton asChild tooltip={item.title} isActive={isActive}>
-                                        <Link href={item.href} prefetch>
+                                    <CollapsibleTrigger asChild>
+                                        <SidebarMenuButton tooltip={item.title} isActive={isActive}>
                                             {item.icon && <item.icon />}
                                             <span>{item.title}</span>
-                                        </Link>
-                                    </SidebarMenuButton>
-                                    <CollapsibleTrigger asChild>
-                                        <SidebarMenuAction className="transition-transform duration-200 data-[state=open]:rotate-90">
-                                            <ChevronRight />
-                                            <span className="sr-only">Toggle</span>
-                                        </SidebarMenuAction>
+                                            <ChevronRight className="ml-auto transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
+                                        </SidebarMenuButton>
                                     </CollapsibleTrigger>
                                     <CollapsibleContent>
                                         <SidebarMenuSub>
@@ -52,6 +47,7 @@ export function NavMain({ items = [] }: { items: NavItem[] }) {
                                                 <SidebarMenuSubItem key={subItem.title}>
                                                     <SidebarMenuSubButton asChild isActive={isCurrentUrl(subItem.href)}>
                                                         <Link href={subItem.href} prefetch>
+                                                            {subItem.icon && <subItem.icon />}
                                                             <span>{subItem.title}</span>
                                                         </Link>
                                                     </SidebarMenuSubButton>
