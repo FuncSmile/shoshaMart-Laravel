@@ -47,21 +47,7 @@ class OrderService
 
             // Restore stock if cancelled after approval
             if ($status === 'CANCELLED' && $oldStatus === 'APPROVED') {
-                $order->loadMissing('items.product');
-                foreach ($order->items as $item) {
-                    /** @var Product $product */
-                    $product = $item->product;
-
-                    if ($product) {
-                        $product->increment('stock', $item->quantity);
-                        $product->stockLogs()->create([
-                            'user_id' => $actor->id,
-                            'amount' => $item->quantity,
-                            'type' => 'add',
-                            'reason' => "Pembatalan Pesanan Disetujui #{$order->order_number}",
-                        ]);
-                    }
-                }
+                $this->restoreStock($order, $actor, "Pembatalan Pesanan Disetujui #{$order->order_number}");
             }
 
             $action = match ($status) {
@@ -267,5 +253,24 @@ class OrderService
             .'Terima kasih.';
 
         $this->fonnteService->sendMessage($groupId, $msg);
+    }
+
+    public function restoreStock(Order $order, User $actor, string $reason): void
+    {
+        $order->loadMissing('items.product');
+        foreach ($order->items as $item) {
+            /** @var Product $product */
+            $product = $item->product;
+
+            if ($product) {
+                $product->increment('stock', $item->quantity);
+                $product->stockLogs()->create([
+                    'user_id' => $actor->id,
+                    'amount' => $item->quantity,
+                    'type' => 'add',
+                    'reason' => $reason,
+                ]);
+            }
+        }
     }
 }

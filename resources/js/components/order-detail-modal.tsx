@@ -29,6 +29,7 @@ interface OrderItem {
 
 interface Order {
     id: string;
+    order_number: string;
     status: string;
     total_amount: number;
     rejection_reason?: string;
@@ -331,7 +332,7 @@ export function OrderDetailModal({ open, onOpenChange, orderId, onReject }: {
                                     <div className="space-y-3 md:space-y-4 w-full md:w-auto">
                                         <div className="flex flex-wrap items-center gap-3">
                                             <div className="bg-primary shadow-[inset_0_2px_4px_rgba(255,255,255,0.2)] px-3 py-1 rounded-full text-primary-foreground flex items-center gap-1.5 font-black text-[9px] md:text-[10px] tracking-[0.2em] uppercase">
-                                                <Hash className="w-3 h-3" /> {order.id.slice(0, 8)}
+                                                <Hash className="w-3 h-3" /> {order.order_number?.split('-').pop()}
                                             </div>
                                             <Badge variant="outline" className={`rounded-full px-3 py-0.5 text-[10px] md:text-xs font-black border-2 border-${statusConfig?.color}-500/30 bg-${statusConfig?.color}-500/5 text-${statusConfig?.color === 'emerald' ? 'emerald-500' : statusConfig?.color === 'amber' ? 'amber-600' : 'destructive'} uppercase tracking-wider`}>
                                                 {statusConfig?.icon && <statusConfig.icon className="w-3 h-3 mr-1.5" />}
@@ -339,7 +340,7 @@ export function OrderDetailModal({ open, onOpenChange, orderId, onReject }: {
                                             </Badge>
                                         </div>
                                         <h2 className="text-3xl md:text-6xl font-[1000] italic tracking-tighter text-foreground/90 uppercase leading-none">
-                                            {order.jenis_pesanan === 'opening' ? 'Laporan' : 'Invoice'} <span className="text-primary italic">#{order.id.slice(0, 4)}</span>
+                                            {order.jenis_pesanan === 'opening' ? 'Laporan' : 'Invoice'} <span className="text-primary italic">#{order.order_number?.split('-').pop()}</span>
                                         </h2>
                                         <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-[10px] md:text-xs font-black text-muted-foreground uppercase tracking-[0.2em]">
                                             <div className="flex items-center gap-2"><Calendar className="w-4 h-4 text-primary/60" /> {new Date(order.created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}</div>

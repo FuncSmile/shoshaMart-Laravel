@@ -366,9 +366,37 @@ class OrderController extends Controller
             abort(403);
         }
 
+        if ($order->status === 'APPROVED') {
+            $this->orderService->restoreStock($order, $request->user(), "Penghapusan Pesanan Disetujui #{$order->order_number}");
+        }
+
+        $order->histories()->create([
+            'user_id' => $request->user()->id,
+            'message' => "{$request->user()->username} telah menghapus pesanan #{$order->order_number} ke Trash.",
+        ]);
+
         $order->delete();
 
         return back()->with('status', 'Pesanan berhasil dihapus.');
+    }
+
+    public function forceDestroy(Request $request, string $id)
+    {
+        if (! $request->user()->isSuperAdmin()) {
+            abort(403);
+        }
+
+        $order = Order::withTrashed()->findOrFail($id);
+
+        if ($order->status === 'APPROVED' && $order->trashed()) {
+            // If it was already soft-deleted, stock should have been restored then.
+            // But if for some reason it wasn't (e.g. legacy data), we don't double restore unless we check logs.
+            // For safety, we just allow permanent deletion here.
+        }
+
+        $order->forceDelete();
+
+        return back()->with('status', 'Pesanan berhasil dihapus secara permanen.');
     }
 
     public function markAsPrinted(Order $order)

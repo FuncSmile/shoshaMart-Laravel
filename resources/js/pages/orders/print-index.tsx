@@ -26,6 +26,7 @@ import { Printer } from 'lucide-react';
 
 interface Order {
     id: string;
+    order_number: string;
     status: string;
     total_amount: number;
     nama_pemesan: string;
@@ -371,7 +372,7 @@ export default function OrderIndex() {
                                                 </div>
                                                 <div>
                                                     <div className="font-black text-foreground text-sm flex items-center gap-1 uppercase tracking-tight">
-                                                        #{order.id.slice(0, 8)}
+                                                        #{order.order_number?.split('-').pop()}
                                                         {order.is_printed ? (
                                                             <div className="ml-1 px-2 py-0.5 rounded-sm bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 flex flex-col justify-center">
                                                                 <span className="text-[8px] font-black uppercase tracking-widest whitespace-nowrap">Dicetak Pada:</span>

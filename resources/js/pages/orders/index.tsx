@@ -17,6 +17,7 @@ import { index as ordersIndex, approve as ordersApprove, reject as ordersReject,
 
 interface Order {
     id: string;
+    order_number: string;
     status: string;
     total_amount: number;
     nama_pemesan: string;
@@ -386,7 +387,7 @@ export default function OrderIndex() {
                                                 </div>
                                                 <div>
                                                     <div className="font-black text-foreground text-sm flex items-center gap-1 uppercase tracking-tight">
-                                                        #{order.id.slice(0, 8)}
+                                                        #{order.order_number?.split('-').pop()}
                                                         {order.is_printed ? (
                                                             <span title="Ter-cetak">
                                                                 <CheckCircle className="h-3.5 w-3.5 text-emerald-500 fill-emerald-500/10" />
