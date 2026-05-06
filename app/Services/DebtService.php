@@ -26,7 +26,8 @@ class DebtService
         $query = Order::query()
             ->where('status', Order::STATUS_DEBT)
             ->whereNull('settlement_id')
-            ->whereBetween('created_at', [$startDate.' 00:00:00', $endDate.' 23:59:59'])
+            ->where('created_at', '>=', Carbon::createFromFormat('Y-m-d', $startDate, 'Asia/Jakarta')->startOfDay()->utc())
+            ->where('created_at', '<=', Carbon::createFromFormat('Y-m-d', $endDate, 'Asia/Jakarta')->endOfDay()->utc())
             ->selectRaw("
                 buyer_id, 
                 $yearExpr as year, 
@@ -126,7 +127,7 @@ class DebtService
 
     protected function uploadToCloudinary(UploadedFile $file): string
     {
-        $cloudinaryUrl = env('CLOUDINARY_URL');
+        $cloudinaryUrl = config('services.cloudinary.url');
         if (! $cloudinaryUrl) {
             throw new \Exception('Cloudinary URL not configured');
         }
@@ -138,7 +139,7 @@ class DebtService
 
         $response = Http::attach('file', $file->get(), $file->getClientOriginalName())
             ->post("https://api.cloudinary.com/v1_1/{$cloudName}/image/upload", [
-                'upload_preset' => env('CLOUDINARY_UPLOAD_PRESET', 'ml_default'),
+                'upload_preset' => config('services.cloudinary.upload_preset'),
             ]);
 
         if ($response->failed()) {
@@ -150,7 +151,7 @@ class DebtService
 
     protected function uploadToVercelBlob(UploadedFile $file): string
     {
-        $token = env('BLOB_READ_WRITE_TOKEN');
+        $token = config('services.vercel_blob.token');
         if (! $token) {
             throw new \Exception('Vercel Blob token not configured');
         }

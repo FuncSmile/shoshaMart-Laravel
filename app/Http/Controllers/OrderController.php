@@ -42,7 +42,6 @@ class OrderController extends Controller
             ->with([
                 'buyer:id,username,branch_name,phone',
                 'tier:id,name',
-                'histories.user:id,username',
             ]);
 
         if ($user->role === 'SUPERADMIN' || $user->role === 'ADMIN_TIER') {
@@ -74,11 +73,11 @@ class OrderController extends Controller
         }
 
         if ($startDate) {
-            $query->whereDate('created_at', '>=', $startDate);
+            $query->where('created_at', '>=', \Illuminate\Support\Carbon::createFromFormat('Y-m-d', $startDate, 'Asia/Jakarta')->startOfDay()->utc());
         }
 
         if ($endDate) {
-            $query->whereDate('created_at', '<=', $endDate);
+            $query->where('created_at', '<=', \Illuminate\Support\Carbon::createFromFormat('Y-m-d', $endDate, 'Asia/Jakarta')->endOfDay()->utc());
         }
 
         if ($search) {
@@ -93,6 +92,8 @@ class OrderController extends Controller
 
         $orders = $query->paginate(10)->withQueryString();
 
+        $orderTypes = OrderType::orderBy('name')->get();
+
         return Inertia::render('orders/index', [
             'orders' => OrderResource::collection($orders),
             'auth_role' => $user->role,
@@ -102,8 +103,8 @@ class OrderController extends Controller
             ),
             'buyers' => $user->isSuperAdmin() ? User::where('role', 'BUYER')->select(['id', 'username', 'branch_name', 'tier_id'])->get() : [],
             'tiers' => Tier::select(['id', 'name'])->get(),
-            'availableTypes' => OrderType::orderBy('name')->pluck('name'),
-            'orderTypes' => OrderType::orderBy('name')->get(),
+            'availableTypes' => $orderTypes->pluck('name'),
+            'orderTypes' => $orderTypes,
         ]);
     }
 
@@ -160,7 +161,6 @@ class OrderController extends Controller
             ->with([
                 'buyer:id,username,branch_name,phone',
                 'tier:id,name',
-                'histories.user:id,username',
             ]);
 
         if ($status === 'TRASHED') {
@@ -199,6 +199,8 @@ class OrderController extends Controller
 
         $orders = $query->orderBy('is_printed', 'asc')->latest()->paginate(10)->withQueryString();
 
+        $orderTypes = OrderType::orderBy('name')->get();
+
         return Inertia::render('orders/print-index', [
             'orders' => OrderResource::collection($orders),
             'auth_role' => $user->role,
@@ -208,8 +210,8 @@ class OrderController extends Controller
             ),
             'buyers' => $user->isSuperAdmin() ? User::where('role', 'BUYER')->select(['id', 'username', 'branch_name', 'tier_id'])->get() : [],
             'tiers' => Tier::select(['id', 'name'])->get(),
-            'availableTypes' => OrderType::orderBy('name')->pluck('name'),
-            'orderTypes' => OrderType::orderBy('name')->get(),
+            'availableTypes' => $orderTypes->pluck('name'),
+            'orderTypes' => $orderTypes,
         ]);
     }
 
@@ -347,15 +349,26 @@ class OrderController extends Controller
         $pdf->setPaper([0, 0, 612, 396], 'portrait');
 
         $date = now()->format('Y-m-d');
+        $now = now();
+        $actorId = auth()->id();
+        $actorName = auth()->user()->username;
 
-        // Mark all these orders as printed
-        foreach ($orders as $order) {
-            $order->update(['is_printed' => true, 'printed_at' => now()]);
-            $order->histories()->create([
-                'user_id' => auth()->id(),
-                'message' => 'Invoice dicetak secara massal oleh '.auth()->user()->username,
-            ]);
-        }
+        // Bulk update instead of per-order loop
+        Order::whereIn('id', $orders->pluck('id'))->update([
+            'is_printed' => true,
+            'printed_at' => $now,
+        ]);
+
+        \Illuminate\Support\Facades\DB::table('order_histories')->insert(
+            $orders->map(fn ($order) => [
+                'id' => (string) \Illuminate\Support\Str::uuid(),
+                'order_id' => $order->id,
+                'user_id' => $actorId,
+                'message' => "Invoice dicetak secara massal oleh {$actorName}",
+                'created_at' => $now,
+                'updated_at' => $now,
+            ])->toArray()
+        );
 
         return $pdf->stream("BULK-INVOICE-{$date}.pdf");
     }

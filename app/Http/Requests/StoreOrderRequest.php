@@ -3,8 +3,10 @@
 namespace App\Http\Requests;
 
 use App\Models\Order;
+use App\Models\OrderType;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class StoreOrderRequest extends FormRequest
 {
@@ -25,7 +27,7 @@ class StoreOrderRequest extends FormRequest
     {
         return [
             'nama_pemesan' => ['required', 'string', 'max:255'],
-            'jenis_pesanan' => ['required', 'string', 'in:'.implode(',', Order::TYPES)],
+            'jenis_pesanan' => ['required', 'string', Rule::in(OrderType::pluck('name')->toArray())],
             'items' => ['required', 'array', 'min:1'],
             'items.*.product_id' => ['required', 'uuid', 'exists:products,id'],
             'items.*.quantity' => ['required', 'integer', 'min:1'],

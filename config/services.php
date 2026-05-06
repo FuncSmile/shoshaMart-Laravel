@@ -24,6 +24,16 @@ return [
 
     'fonnte' => [
         'token' => env('FONNTE_TOKEN'),
+        'group_id' => env('FONNTE_GROUP_ID'),
+    ],
+
+    'cloudinary' => [
+        'url' => env('CLOUDINARY_URL'),
+        'upload_preset' => env('CLOUDINARY_UPLOAD_PRESET', 'ml_default'),
+    ],
+
+    'vercel_blob' => [
+        'token' => env('BLOB_READ_WRITE_TOKEN'),
     ],
 
     'ses' => [

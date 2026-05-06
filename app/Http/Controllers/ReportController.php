@@ -47,11 +47,11 @@ class ReportController extends Controller
         }
 
         if ($startDate) {
-            $query->whereDate('created_at', '>=', $startDate);
+            $query->where('created_at', '>=', \Illuminate\Support\Carbon::createFromFormat('Y-m-d', $startDate, 'Asia/Jakarta')->startOfDay()->utc());
         }
 
         if ($endDate) {
-            $query->whereDate('created_at', '<=', $endDate);
+            $query->where('created_at', '<=', \Illuminate\Support\Carbon::createFromFormat('Y-m-d', $endDate, 'Asia/Jakarta')->endOfDay()->utc());
         }
 
         $orders = $query->get();
@@ -72,7 +72,9 @@ class ReportController extends Controller
         $filename = 'LAPORAN-PESANAN-'.($jenisPesanan !== 'ALL' ? strtoupper($jenisPesanan).'-' : '').$dateSuffix;
 
         if ($format === 'pdf') {
-            $groupedOrders = $orders->groupBy('buyer_id');
+            $groupedOrders = $orders->groupBy('buyer_id')->sortBy(function ($branchOrders) {
+                return strtolower($branchOrders->first()->buyer->branch_name ?? $branchOrders->first()->buyer->username);
+            });
             $pdf = Pdf::loadView('reports.orders', compact('groupedOrders', 'jenisPesanan', 'tierName'));
             $pdf->setPaper('a4', 'portrait');
 

@@ -236,7 +236,10 @@ export default function OrderIndex() {
                 {auth_role === 'SUPERADMIN' && (
                     <div className="flex items-center gap-3">
                         <Button
-                            onClick={() => setIsReportModalOpen(true)}
+                            onClick={() => {
+                                setReportData(prev => ({ ...prev, start_date: startDate, end_date: endDate }));
+                                setIsReportModalOpen(true);
+                            }}
                             variant="outline"
                             className="rounded-full border-2 border-primary/20 hover:bg-primary/5 text-primary font-black italic uppercase tracking-widest px-8 h-14 flex items-center gap-2 group"
                         >
@@ -462,6 +465,7 @@ export default function OrderIndex() {
                 open={isDetailOpen}
                 onOpenChange={setIsDetailOpen}
                 orderId={selectedOrderId}
+                availableTypes={availableTypes as string[]}
                 onReject={(order) => {
                     setIsDetailOpen(false); setRejectingOrder(order);
                 }}
@@ -594,6 +598,7 @@ export default function OrderIndex() {
                                     <SelectContent className="rounded-2xl border-none shadow-2xl">
                                         <SelectItem value="ALL" className="font-bold">SEMUA JENIS</SelectItem>
                                         <SelectItem value="awal bulan" className="font-bold">AWAL BULAN</SelectItem>
+                                        <SelectItem value="akhir bulan" className="font-bold">AKHIR BULAN</SelectItem>
                                         <SelectItem value="pertengahan bulan" className="font-bold">PERTENGAHAN BULAN</SelectItem>
                                         <SelectItem value="Lembur" className="font-bold">LEMBUR</SelectItem>
                                         <SelectItem value="tambahan bulan ini" className="font-bold">TAMBAHAN BULAN INI</SelectItem>
@@ -662,6 +667,7 @@ export default function OrderIndex() {
                                     <SelectContent className="rounded-2xl border-none shadow-2xl">
                                         <SelectItem value="ALL" className="font-bold">SEMUA JENIS</SelectItem>
                                         <SelectItem value="awal bulan" className="font-bold text-xs">AWAL BULAN</SelectItem>
+                                        <SelectItem value="akhir bulan" className="font-bold text-xs">AKHIR BULAN</SelectItem>
                                         <SelectItem value="pertengahan bulan" className="font-bold text-xs">PERTENGAHAN BULAN</SelectItem>
                                         <SelectItem value="Lembur" className="font-bold text-xs">LEMBUR</SelectItem>
                                         <SelectItem value="tambahan bulan ini" className="font-bold text-xs">TAMBAHAN BULAN INI</SelectItem>

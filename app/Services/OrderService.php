@@ -232,7 +232,7 @@ class OrderService
 
     protected function notifyAdminGroup(Order $order, User $user): void
     {
-        $groupId = env('FONNTE_GROUP_ID');
+        $groupId = config('services.fonnte.group_id');
         if (! $groupId) {
             return;
         }

@@ -17,6 +17,7 @@ class Order extends Model
     const TYPES = [
         'awal bulan',
         'pertengahan bulan',
+        'akhir bulan',
         'Lembur',
         'tambahan bulan ini',
         'opening',

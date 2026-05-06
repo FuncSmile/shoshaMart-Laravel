@@ -22,7 +22,9 @@ class OrdersExport implements WithMultipleSheets
     public function sheets(): array
     {
         $sheets = [];
-        $groupedOrders = $this->orders->groupBy('buyer_id');
+        $groupedOrders = $this->orders->groupBy('buyer_id')->sortBy(function ($orders) {
+            return strtolower($orders->first()->buyer->branch_name ?? $orders->first()->buyer->username);
+        });
 
         $sheets[] = new BranchSummarySheet($groupedOrders, $this->tierName);
 

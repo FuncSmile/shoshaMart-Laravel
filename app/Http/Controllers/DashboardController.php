@@ -26,13 +26,14 @@ class DashboardController extends Controller
             // Buyers only see their own dashboard (already logic is separate but for safety)
             $query->where('buyer_id', $user->id);
 
+            $buyerOrders = $user->orders()->latest()->get();
             return Inertia::render('dashboard', [
                 'stats' => [
-                    ['title' => 'Pesanan Saya', 'value' => $user->orders()->count(), 'icon' => 'package', 'color' => 'text-blue-600'],
+                    ['title' => 'Pesanan Saya', 'value' => $buyerOrders->count(), 'icon' => 'package', 'color' => 'text-blue-600'],
                     ['title' => 'Tier Saya', 'value' => $user->tier->name ?? 'None', 'icon' => 'trending-up', 'color' => 'text-emerald-600'],
                     ['title' => 'Cabang', 'value' => $user->branch_name ?? 'Pusat', 'icon' => 'layout-dashboard', 'color' => 'text-amber-600'],
                 ],
-                'recentActivity' => $user->orders()->latest()->take(5)->get(),
+                'recentActivity' => $buyerOrders->take(5),
                 'filters' => [
                     'branch_name' => '',
                     'jenis_pesanan' => '',
@@ -48,9 +49,8 @@ class DashboardController extends Controller
 
         // --- FILTERING ---
         if ($request->filled('branch_name')) {
-            $query->whereHas('buyer', function ($q) use ($request) {
-                $q->where('branch_name', $request->branch_name);
-            });
+            $buyerIds = User::where('branch_name', $request->branch_name)->pluck('id');
+            $query->whereIn('buyer_id', $buyerIds);
         }
 
         if ($request->filled('jenis_pesanan')) {
@@ -83,13 +83,19 @@ class DashboardController extends Controller
             ],
         ];
 
-        // --- CHART DATA (Last 30 Days) ---
+        // --- CHART DATA (Last 30 Days) --- single query grouped by date
+        $dailyTotals = (clone $query)
+            ->where('created_at', '>=', now()->subDays(29)->startOfDay())
+            ->selectRaw('DATE(created_at) as date, SUM(total_amount) as total')
+            ->groupBy('date')
+            ->pluck('total', 'date');
+
         $chartData = [];
         for ($i = 29; $i >= 0; $i--) {
-            $date = now()->subDays($i)->format('Y-m-d');
+            $day = now()->subDays($i);
             $chartData[] = [
-                'name' => now()->subDays($i)->isoFormat('DD MMM'),
-                'total' => (clone $query)->whereDate('created_at', $date)->sum('total_amount'),
+                'name' => $day->isoFormat('DD MMM'),
+                'total' => $dailyTotals[$day->format('Y-m-d')] ?? 0,
             ];
         }
 

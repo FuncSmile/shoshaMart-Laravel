@@ -72,11 +72,12 @@ interface AvailableProduct {
     base_price: number;
 }
 
-export function OrderDetailModal({ open, onOpenChange, orderId, onReject }: {
+export function OrderDetailModal({ open, onOpenChange, orderId, onReject, availableTypes = [] }: {
     open: boolean,
     onOpenChange: (val: boolean) => void,
     orderId: string | null,
-    onReject?: (order: any) => void
+    onReject?: (order: any) => void,
+    availableTypes?: string[]
 }) {
     const [order, setOrder] = useState<Order | null>(null);
     const [loading, setLoading] = useState(false);
@@ -443,10 +444,20 @@ export function OrderDetailModal({ open, onOpenChange, orderId, onReject }: {
                                                                     <SelectValue />
                                                                 </SelectTrigger>
                                                                 <SelectContent>
-                                                                    <SelectItem value="awal bulan" className="font-bold text-[10px] uppercase tracking-widest">AKHIR BULAN</SelectItem>
-                                                                    <SelectItem value="pertengahan bulan" className="font-bold text-[10px] uppercase tracking-widest">PERTENGAHAN BULAN</SelectItem>
-                                                                    <SelectItem value="Lembur" className="font-bold text-[10px] uppercase tracking-widest">LEMBUR</SelectItem>
-                                                                    <SelectItem value="tambahan bulan ini" className="font-bold text-[10px] uppercase tracking-widest">TAMBAHAN BULAN INI</SelectItem>
+                                                                    {availableTypes.length > 0
+                                                                        ? availableTypes.map((type) => (
+                                                                            <SelectItem key={type} value={type} className="font-bold text-[10px] uppercase tracking-widest">{type.toUpperCase()}</SelectItem>
+                                                                        ))
+                                                                        : [
+                                                                            <SelectItem key="awal bulan" value="awal bulan" className="font-bold text-[10px] uppercase tracking-widest">AWAL BULAN</SelectItem>,
+                                                                            <SelectItem key="akhir bulan" value="akhir bulan" className="font-bold text-[10px] uppercase tracking-widest">AKHIR BULAN</SelectItem>,
+                                                                            <SelectItem key="pertengahan bulan" value="pertengahan bulan" className="font-bold text-[10px] uppercase tracking-widest">PERTENGAHAN BULAN</SelectItem>,
+                                                                            <SelectItem key="Lembur" value="Lembur" className="font-bold text-[10px] uppercase tracking-widest">LEMBUR</SelectItem>,
+                                                                            <SelectItem key="tambahan bulan ini" value="tambahan bulan ini" className="font-bold text-[10px] uppercase tracking-widest">TAMBAHAN BULAN INI</SelectItem>,
+                                                                            <SelectItem key="opening" value="opening" className="font-bold text-[10px] uppercase tracking-widest">OPENING</SelectItem>,
+                                                                            <SelectItem key="teknisi" value="teknisi" className="font-bold text-[10px] uppercase tracking-widest">TEKNISI</SelectItem>,
+                                                                        ]
+                                                                    }
                                                                 </SelectContent>
                                                             </Select>
                                                             <Input
