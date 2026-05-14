@@ -4,7 +4,7 @@ import {
     AlertCircle, Trash2, Search, Minus, Plus, Tag, Calendar, CreditCard, Pencil, Check, X
 } from 'lucide-react';
 import { useState, useEffect, useMemo } from 'react';
-import { OrderDetailModal } from '@/components/order-detail-modal';
+import { OrderDetailSheet } from '@/components/order-detail-modal';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
@@ -542,8 +542,8 @@ export default function OrderIndex() {
                 </CardContent>
             </Card>
 
-            {/* Detail Modal */}
-            <OrderDetailModal
+            {/* Detail Sheet */}
+            <OrderDetailSheet
                 open={isDetailOpen}
                 onOpenChange={setIsDetailOpen}
                 orderId={selectedOrderId}

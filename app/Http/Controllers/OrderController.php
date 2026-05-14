@@ -81,12 +81,14 @@ class OrderController extends Controller
         }
 
         if ($search) {
-            $query->where(function ($q) use ($search) {
+            $matchingBuyerIds = \App\Models\User::where('username', 'like', "%{$search}%")
+                ->orWhere('branch_name', 'like', "%{$search}%")
+                ->pluck('id');
+
+            $query->where(function ($q) use ($search, $matchingBuyerIds) {
                 $q->where('order_number', 'like', "%{$search}%")
                     ->orWhere('nama_pemesan', 'like', "%{$search}%")
-                    ->orWhereHas('buyer', function ($sq) use ($search) {
-                        $sq->where('username', 'like', "%{$search}%");
-                    });
+                    ->orWhereIn('buyer_id', $matchingBuyerIds);
             });
         }
 

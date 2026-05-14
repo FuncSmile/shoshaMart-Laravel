@@ -8,7 +8,7 @@ import {
 import { useState, useEffect, useMemo } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetFooter } from '@/components/ui/sheet';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -72,7 +72,7 @@ interface AvailableProduct {
     base_price: number;
 }
 
-export function OrderDetailModal({ open, onOpenChange, orderId, onReject, availableTypes = [] }: {
+export function OrderDetailSheet({ open, onOpenChange, orderId, onReject, availableTypes = [] }: {
     open: boolean,
     onOpenChange: (val: boolean) => void,
     orderId: string | null,
@@ -300,12 +300,12 @@ export function OrderDetailModal({ open, onOpenChange, orderId, onReject, availa
     const statusConfig = order ? getStatusConfig(order.status) : null;
 
     return (
-        <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="w-full sm:w-[95dvw] md:max-w-4xl p-0 overflow-hidden border-none shadow-[0_0_80px_-15px_rgba(0,0,0,0.6)] rounded-none sm:rounded-[2.5rem] md:rounded-[3rem] h-[95dvh] sm:h-[90vh] flex flex-col focus:outline-none">
-                <DialogHeader className="sr-only">
-                    <DialogTitle>Detail Pesanan {orderId ? `#${orderId.slice(0, 8)}` : ''}</DialogTitle>
-                    <DialogDescription>Menampilkan rincian lengkap pesanan b2b anda.</DialogDescription>
-                </DialogHeader>
+        <Sheet open={open} onOpenChange={onOpenChange}>
+            <SheetContent side="right" className="w-full sm:max-w-2xl lg:max-w-4xl p-0 overflow-hidden border-l border-primary/10 h-full flex flex-col [&>button:last-of-type]:hidden">
+                <SheetHeader className="sr-only p-0">
+                    <SheetTitle>Detail Pesanan {orderId ? `#${orderId.slice(0, 8)}` : ''}</SheetTitle>
+                    <SheetDescription>Menampilkan rincian lengkap pesanan b2b anda.</SheetDescription>
+                </SheetHeader>
 
                 {loading ? (
                     <div className="p-0 flex-1 flex flex-col">
@@ -809,7 +809,7 @@ export function OrderDetailModal({ open, onOpenChange, orderId, onReject, availa
                         </div>
 
                         {/* Sticky Footer with Glassmorphism */}
-                        <DialogFooter className="p-6 md:p-10 bg-background/95 backdrop-blur-3xl border-t-2 border-primary/5 flex flex-col md:flex-row gap-4 shrink-0 z-50">
+                        <SheetFooter className="p-6 md:p-10 bg-background/95 backdrop-blur-3xl border-t-2 border-primary/5 flex-col md:flex-row gap-4 shrink-0 z-50 mt-0">
                             {isEditing ? (
                                 <div className="w-full flex flex-col sm:flex-row items-center justify-end gap-3 md:gap-4">
                                     <Button
@@ -907,7 +907,7 @@ export function OrderDetailModal({ open, onOpenChange, orderId, onReject, availa
                                     </Button>
                                 </div>
                             )}
-                        </DialogFooter>
+                        </SheetFooter>
                     </div>
                 ) : (
                     <div className="p-20 flex flex-col items-center justify-center gap-6 text-muted-foreground italic font-[1000] text-center h-[60vh]">
@@ -919,7 +919,7 @@ export function OrderDetailModal({ open, onOpenChange, orderId, onReject, availa
                         <Button variant="outline" className="rounded-full px-8" onClick={() => onOpenChange(false)}>Kembali Ke Beranda</Button>
                     </div>
                 )}
-            </DialogContent>
-        </Dialog>
+            </SheetContent>
+        </Sheet>
     );
 }
