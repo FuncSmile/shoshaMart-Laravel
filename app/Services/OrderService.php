@@ -7,6 +7,7 @@ use App\Models\Product;
 use App\Models\User;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 
 class OrderService
@@ -91,7 +92,7 @@ class OrderService
             }
         }])->whereIn('id', $productIds)->get()->keyBy('id');
 
-        return DB::transaction(function () use ($user, $targetUser, $items, $products, $namaPemesan, $jenisPesanan, $createdAt) {
+        $order = DB::transaction(function () use ($user, $targetUser, $items, $products, $namaPemesan, $jenisPesanan, $createdAt) {
             $totalAmount = 0;
             $orderItemsData = [];
             foreach ($items as $item) {
@@ -139,11 +140,17 @@ class OrderService
                 $order->items()->create($itemData);
             }
 
-            $this->notifyAdminTier($order, $targetUser);
-            $this->notifyAdminGroup($order, $targetUser);
-
             return $order;
         });
+
+        try {
+            $this->notifyAdminTier($order, $targetUser);
+            $this->notifyAdminGroup($order, $targetUser);
+        } catch (\Throwable $e) {
+            Log::warning("Fonnte notification failed for order {$order->order_number}: {$e->getMessage()}");
+        }
+
+        return $order;
     }
 
     public function updateOrder(Order $order, array $items, User $actor, string $namaPemesan, string $jenisPesanan, ?string $createdAt = null): Order
