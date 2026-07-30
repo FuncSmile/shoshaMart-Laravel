@@ -8,6 +8,7 @@ import { OrderDetailSheet } from '@/components/order-detail-modal';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -17,12 +18,19 @@ import {
     index as ordersIndex,
     printIndex as printOrdersIndex,
     invoice as ordersInvoice,
+    bulkInvoice as ordersBulkInvoice,
     approve as ordersApprove,
     reject as ordersReject,
     destroy as ordersDestroy,
     cancel as ordersCancel
 } from '@/routes/orders/index';
 import { Printer } from 'lucide-react';
+
+/** Statuses an admin has accepted — mirrors Order::ACCEPTED_STATUSES. */
+const PRINTABLE_STATUSES = ['approved', 'paid', 'verified'];
+
+/** Mirrors OrderController::BULK_INVOICE_LIMIT. */
+const BULK_PRINT_LIMIT = 100;
 
 interface Order {
     id: string;
@@ -60,17 +68,16 @@ export default function OrderIndex() {
     const [isDetailOpen, setIsDetailOpen] = useState(false);
     const [rejectingOrder, setRejectingOrder] = useState<Order | null>(null);
     const [deletingOrder, setDeletingOrder] = useState<Order | null>(null);
-    const [isQuickPrintOpen, setIsQuickPrintOpen] = useState(false);
+    const [isBulkPrintOpen, setIsBulkPrintOpen] = useState(false);
     const [isReportModalOpen, setIsReportModalOpen] = useState(false);
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
     const [isTypesModalOpen, setIsTypesModalOpen] = useState(false);
     const [editingType, setEditingType] = useState<any>(null);
     const [availableProducts, setAvailableProducts] = useState<any[]>([]);
 
-    const [quickPrintData, setQuickPrintData] = useState({
-        buyer_id: 'ALL',
-        jenis_pesanan: 'ALL'
-    });
+    // Selection is keyed by order id and keeps the whole row, so the review
+    // dialog can list every picked order even after paging away from it.
+    const [selectedOrders, setSelectedOrders] = useState<Map<string, Order>>(new Map());
 
     const [reportData, setReportData] = useState({
         jenis_pesanan: 'ALL',
@@ -139,6 +146,97 @@ export default function OrderIndex() {
             case 'verified': return <Badge className="bg-indigo-500/10 text-indigo-500 border-indigo-500/20"><Check className="w-3 h-3 mr-1" /> Lunas</Badge>;
             default: return <Badge variant="outline">{status}</Badge>;
         }
+    };
+
+    // --- Bulk print selection ---------------------------------------------
+    // Only orders an admin has accepted can be invoiced; the backend enforces
+    // the same rule, so an out-of-date row can never sneak into a batch.
+    const isPrintable = (order: Order) => PRINTABLE_STATUSES.includes(order.status.toLowerCase());
+
+    const pageOrders: Order[] = orders.data;
+    const printablePageOrders = useMemo(() => pageOrders.filter(isPrintable), [pageOrders]);
+    const selectedList = useMemo(() => Array.from(selectedOrders.values()), [selectedOrders]);
+    const selectedTotal = useMemo(
+        () => selectedList.reduce((acc, order) => acc + Number(order.total_amount), 0),
+        [selectedList],
+    );
+
+    const selectedOnPage = printablePageOrders.filter(order => selectedOrders.has(order.id)).length;
+    const allPageSelected = printablePageOrders.length > 0 && selectedOnPage === printablePageOrders.length;
+    const pageCheckboxState: boolean | 'indeterminate' = allPageSelected
+        ? true
+        : (selectedOnPage > 0 ? 'indeterminate' : false);
+
+    const overLimit = selectedList.length > BULK_PRINT_LIMIT;
+
+    const toggleOrder = (order: Order, checked: boolean) => {
+        setSelectedOrders(prev => {
+            const next = new Map(prev);
+
+            if (checked) {
+                next.set(order.id, order);
+            } else {
+                next.delete(order.id);
+            }
+
+            return next;
+        });
+    };
+
+    const togglePage = (checked: boolean) => {
+        setSelectedOrders(prev => {
+            const next = new Map(prev);
+
+            printablePageOrders.forEach(order => {
+                if (checked) {
+                    next.set(order.id, order);
+                } else {
+                    next.delete(order.id);
+                }
+            });
+
+            return next;
+        });
+    };
+
+    const clearSelection = () => setSelectedOrders(new Map());
+
+    const submitBulkPrint = () => {
+        if (selectedList.length === 0 || overLimit) {
+            return;
+        }
+
+        // A real form POST (not fetch) so the streamed PDF lands in a new tab.
+        // Ids are sent one by one in the picked order — the PDF pages follow
+        // that same order server-side.
+        const form = document.createElement('form');
+
+        form.method = 'POST';
+        form.action = ordersBulkInvoice.url();
+        form.target = '_blank';
+        form.style.display = 'none';
+
+        const addField = (name: string, value: string) => {
+            const input = document.createElement('input');
+
+            input.type = 'hidden';
+            input.name = name;
+            input.value = value;
+            form.appendChild(input);
+        };
+
+        addField('_token', document.querySelector<HTMLMetaElement>('meta[name="csrf-token"]')?.content ?? '');
+        selectedList.forEach(order => addField('ids[]', order.id));
+
+        document.body.appendChild(form);
+        form.submit();
+        setTimeout(() => form.remove(), 0);
+
+        // Drop the selection right away: those orders are now printed, and a
+        // stale tick box is the easiest way to print something twice.
+        setIsBulkPrintOpen(false);
+        clearSelection();
+        setTimeout(() => router.reload({ only: ['orders'] }), 1500);
     };
 
     const handleApprove = (id: string) => {
@@ -246,16 +344,54 @@ export default function OrderIndex() {
                             <Filter className="h-5 w-5 group-hover:rotate-12 transition-transform" />
                             EXPORT LAPORAN
                         </Button>
-                        <Button
-                            onClick={() => setIsQuickPrintOpen(true)}
-                            className="rounded-full bg-primary hover:bg-primary/90 text-primary-foreground font-black italic uppercase tracking-widest px-8 h-14 shadow-2xl shadow-primary/20 flex items-center gap-2 group"
-                        >
-                            <Package className="h-5 w-5 group-hover:scale-110 transition-transform" />
-                            CETAK CEPAT
-                        </Button>
                     </div>
                 )}
             </div>
+
+            {/* Selection bar — appears only when something is ticked, so the
+                printable batch is always visible before it is sent. */}
+            {auth_role === 'SUPERADMIN' && selectedList.length > 0 && (
+                <div className="sticky top-4 z-30 flex flex-col sm:flex-row sm:items-center justify-between gap-4 rounded-3xl border-2 border-primary/20 bg-background/95 backdrop-blur px-6 py-4 shadow-2xl shadow-primary/10 animate-in fade-in slide-in-from-top-2">
+                    <div className="flex items-center gap-4">
+                        <div className="h-12 w-12 shrink-0 rounded-2xl bg-primary/10 flex items-center justify-center">
+                            <span className="font-black text-primary text-lg tabular-nums">{selectedList.length}</span>
+                        </div>
+                        <div>
+                            <div className="font-black italic uppercase tracking-tight text-sm">
+                                Pesanan dipilih
+                            </div>
+                            <div className="text-[11px] font-bold text-muted-foreground">
+                                Total tagihan {formatCurrency(selectedTotal)}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                        <Button
+                            variant="ghost"
+                            onClick={clearSelection}
+                            className="rounded-full font-black italic uppercase text-[10px] tracking-widest text-muted-foreground hover:text-destructive"
+                        >
+                            <X className="h-4 w-4 mr-1" /> Bersihkan
+                        </Button>
+                        <Button
+                            onClick={() => setIsBulkPrintOpen(true)}
+                            disabled={overLimit}
+                            className="rounded-full bg-primary hover:bg-primary/90 text-primary-foreground font-black italic uppercase tracking-widest px-8 h-12 shadow-xl shadow-primary/20 flex items-center gap-2 group disabled:opacity-50"
+                        >
+                            <Printer className="h-4 w-4 group-hover:scale-110 transition-transform" />
+                            Cetak {selectedList.length} Invoice
+                        </Button>
+                    </div>
+                </div>
+            )}
+
+            {auth_role === 'SUPERADMIN' && overLimit && (
+                <div className="flex items-center gap-3 rounded-2xl border-2 border-destructive/30 bg-destructive/5 px-6 py-4 text-sm font-bold text-destructive">
+                    <AlertCircle className="h-5 w-5 shrink-0" />
+                    Maksimal {BULK_PRINT_LIMIT} pesanan per sekali cetak. Kurangi pilihan Anda ({selectedList.length} terpilih).
+                </div>
+            )}
 
             {/* Main Table Card */}
             <Card className="border-sidebar-border/50 shadow-2xl shadow-foreground/5 overflow-hidden">
@@ -357,7 +493,18 @@ export default function OrderIndex() {
                         <table className="w-full text-sm text-left">
                             <thead className="bg-muted/20 text-[10px] uppercase font-black tracking-widest text-muted-foreground">
                                 <tr>
-                                    <th className="px-8 py-4">ID & Jenis Pesanan</th>
+                                    {auth_role === 'SUPERADMIN' && (
+                                        <th className="pl-8 pr-2 py-4 w-12">
+                                            <Checkbox
+                                                checked={pageCheckboxState}
+                                                onCheckedChange={(value) => togglePage(value === true)}
+                                                disabled={printablePageOrders.length === 0}
+                                                aria-label="Pilih semua pesanan di halaman ini"
+                                                title="Pilih semua pesanan yang dapat dicetak di halaman ini"
+                                            />
+                                        </th>
+                                    )}
+                                    <th className={auth_role === 'SUPERADMIN' ? 'px-4 py-4' : 'px-8 py-4'}>ID & Jenis Pesanan</th>
                                     <th className="px-6 py-4">Cabang</th>
                                     <th className="px-6 py-4">Buyer & Tier</th>
                                     <th className="px-6 py-4">Total Tagihan</th>
@@ -367,8 +514,24 @@ export default function OrderIndex() {
                             </thead>
                             <tbody className="divide-y divide-border/50">
                                 {orders.data.map((order: Order) => (
-                                    <tr key={order.id} className="hover:bg-muted/10 transition-colors group">
-                                        <td className="px-8 py-6">
+                                    <tr
+                                        key={order.id}
+                                        className={`transition-colors group ${selectedOrders.has(order.id) ? 'bg-primary/5 hover:bg-primary/10' : 'hover:bg-muted/10'}`}
+                                    >
+                                        {auth_role === 'SUPERADMIN' && (
+                                            <td className="pl-8 pr-2 py-6">
+                                                <Checkbox
+                                                    checked={selectedOrders.has(order.id)}
+                                                    onCheckedChange={(value) => toggleOrder(order, value === true)}
+                                                    disabled={!isPrintable(order)}
+                                                    aria-label={`Pilih pesanan ${order.order_number}`}
+                                                    title={isPrintable(order)
+                                                        ? `Pilih pesanan ${order.order_number}`
+                                                        : 'Hanya pesanan yang sudah disetujui yang bisa dicetak'}
+                                                />
+                                            </td>
+                                        )}
+                                        <td className={auth_role === 'SUPERADMIN' ? 'px-4 py-6' : 'px-8 py-6'}>
                                             <div className="flex items-center gap-4">
                                                 <div className="h-12 w-12 rounded-2xl bg-primary/5 flex items-center justify-center font-bold text-primary group-hover:bg-primary group-hover:text-primary-foreground transition-all duration-300">
                                                     <Package className="h-6 w-6" />
@@ -551,67 +714,61 @@ export default function OrderIndex() {
                 </DialogContent>
             </Dialog>
 
-            {/* Quick Print Modal */}
-            <Dialog open={isQuickPrintOpen} onOpenChange={setIsQuickPrintOpen}>
-                <DialogContent className="rounded-[2.5rem] p-0 border-none shadow-2xl overflow-hidden sm:max-w-md">
+            {/* Bulk Print Review Modal — lists every selected order so the
+                operator confirms the exact batch before it is printed. */}
+            <Dialog open={isBulkPrintOpen} onOpenChange={setIsBulkPrintOpen}>
+                <DialogContent className="rounded-[2.5rem] p-0 border-none shadow-2xl overflow-hidden sm:max-w-lg">
                     <DialogHeader className="p-8 pb-0">
                         <DialogTitle className="text-2xl font-black italic flex items-center gap-2 tracking-tight uppercase">
-                            <Package className="h-6 w-6 text-primary" />
-                            Cetak Cepat (Approved)
+                            <Printer className="h-6 w-6 text-primary" />
+                            Cetak {selectedList.length} Invoice
                         </DialogTitle>
                         <DialogDescription className="font-bold text-muted-foreground text-[10px] uppercase tracking-widest">
-                            Pilih filter untuk mencetak banyak dokumen sekaligus.
+                            Periksa daftar berikut sebelum mencetak.
                         </DialogDescription>
                     </DialogHeader>
 
                     <div className="p-8 space-y-6">
-                        <div className="space-y-4">
-                            <div className="space-y-2">
-                                <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Kategori Cabang</Label>
-                                <Select
-                                    value={quickPrintData.buyer_id}
-                                    onValueChange={(val) => setQuickPrintData(prev => ({ ...prev, buyer_id: val }))}
-                                >
-                                    <SelectTrigger className="h-12 rounded-2xl border-2 font-bold focus:ring-primary/20 bg-muted/30">
-                                        <SelectValue placeholder="Pilih Cabang" />
-                                    </SelectTrigger>
-                                    <SelectContent className="rounded-2xl border-none shadow-2xl">
-                                        <SelectItem value="ALL" className="font-bold">SEMUA CABANG</SelectItem>
-                                        {buyers?.map((buyer: any) => (
-                                            <SelectItem key={buyer.id} value={buyer.id} className="font-bold">
-                                                {buyer.branch_name || buyer.username}
-                                            </SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
+                        <div className="rounded-2xl border-2 border-primary/10 overflow-hidden">
+                            <div className="max-h-64 overflow-y-auto divide-y divide-border/50">
+                                {selectedList.map((order, index) => (
+                                    <div key={order.id} className="flex items-center gap-3 px-4 py-3 bg-background">
+                                        <span className="w-6 shrink-0 text-[10px] font-black text-muted-foreground tabular-nums">
+                                            {index + 1}.
+                                        </span>
+                                        <div className="flex-1 min-w-0">
+                                            <div className="font-black text-xs uppercase tracking-tight truncate">
+                                                {order.order_number}
+                                            </div>
+                                            <div className="text-[10px] font-bold text-muted-foreground truncate">
+                                                {order.buyer.branch_name || order.buyer.username} · {order.jenis_pesanan}
+                                            </div>
+                                        </div>
+                                        <div className="text-right shrink-0">
+                                            <div className="text-xs font-black text-primary tabular-nums">
+                                                {formatCurrency(order.total_amount)}
+                                            </div>
+                                            {order.is_printed && (
+                                                <div className="text-[9px] font-black uppercase text-amber-500 tracking-tighter">
+                                                    Cetak ulang
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                ))}
                             </div>
-
-                            <div className="space-y-2">
-                                <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Jenis Pesanan</Label>
-                                <Select
-                                    value={quickPrintData.jenis_pesanan}
-                                    onValueChange={(val) => setQuickPrintData(prev => ({ ...prev, jenis_pesanan: val }))}
-                                >
-                                    <SelectTrigger className="h-12 rounded-2xl border-2 font-bold focus:ring-primary/20 bg-muted/30">
-                                        <SelectValue placeholder="Pilih Jenis" />
-                                    </SelectTrigger>
-                                    <SelectContent className="rounded-2xl border-none shadow-2xl">
-                                        <SelectItem value="ALL" className="font-bold">SEMUA JENIS</SelectItem>
-                                        <SelectItem value="awal bulan" className="font-bold">AWAL BULAN</SelectItem>
-                                        <SelectItem value="akhir bulan" className="font-bold">AKHIR BULAN</SelectItem>
-                                        <SelectItem value="pertengahan bulan" className="font-bold">PERTENGAHAN BULAN</SelectItem>
-                                        <SelectItem value="Lembur" className="font-bold">LEMBUR</SelectItem>
-                                        <SelectItem value="tambahan bulan ini" className="font-bold">TAMBAHAN BULAN INI</SelectItem>
-                                        <SelectItem value="opening" className="font-bold">OPENING</SelectItem>
-                                        <SelectItem value="teknisi" className="font-bold">TEKNISI</SelectItem>
-                                    </SelectContent>
-                                </Select>
+                            <div className="flex items-center justify-between px-4 py-3 bg-muted/40 border-t-2 border-primary/10">
+                                <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+                                    Total {selectedList.length} pesanan
+                                </span>
+                                <span className="font-black text-primary tabular-nums">{formatCurrency(selectedTotal)}</span>
                             </div>
                         </div>
 
                         <div className="bg-primary/5 p-4 rounded-2xl border-2 border-primary/10">
                             <p className="text-[10px] font-bold text-primary italic leading-relaxed text-center">
-                                Sistem hanya akan mencetak pesanan dengan status <span className="underline">APPROVED</span> yang sesuai dengan filter di atas.
+                                Hanya {selectedList.length} pesanan di atas yang akan dicetak, berurutan sesuai daftar ini.
+                                Semuanya otomatis ditandai <span className="underline">sudah dicetak</span> setelah PDF berhasil dibuat.
                             </p>
                         </div>
 
@@ -619,21 +776,15 @@ export default function OrderIndex() {
                             <Button
                                 variant="ghost"
                                 className="rounded-full font-black italic uppercase text-xs tracking-widest"
-                                onClick={() => setIsQuickPrintOpen(false)}
+                                onClick={() => setIsBulkPrintOpen(false)}
                             >
                                 Batal
                             </Button>
                             <Button
                                 className="flex-1 rounded-full h-12 font-black italic uppercase text-xs tracking-widest shadow-lg shadow-primary/20"
-                                onClick={() => {
-                                    const url = new URL(window.location.origin + '/orders-bulk/invoice');
-                                    url.searchParams.append('buyer_id', quickPrintData.buyer_id);
-                                    url.searchParams.append('jenis_pesanan', quickPrintData.jenis_pesanan);
-                                    window.open(url.toString(), '_blank');
-                                    setIsQuickPrintOpen(false);
-                                }}
+                                onClick={submitBulkPrint}
                             >
-                                <ArrowRight className="h-4 w-4 mr-2" /> CETAK SEKARANG
+                                <Printer className="h-4 w-4 mr-2" /> CETAK SEKARANG
                             </Button>
                         </DialogFooter>
                     </div>

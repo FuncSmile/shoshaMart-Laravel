@@ -67,6 +67,12 @@ interface TierPrice {
     price: number;
 }
 
+interface CartItem {
+    product_id: string;
+    quantity: number;
+    price?: number;
+}
+
 interface Product {
     id: string;
     name: string;
@@ -199,7 +205,7 @@ export default function ProductsIndex() {
 
     // --- Buyer Cart Logic ---
     const cart = useForm({
-        items: (typeof window !== 'undefined' ? JSON.parse(localStorage.getItem('shosha_cart_items') || '[]') : []),
+        items: (typeof window !== 'undefined' ? JSON.parse(localStorage.getItem('shosha_cart_items') || '[]') : []) as CartItem[],
         nama_pemesan: '',
         jenis_pesanan: getDefaultOrderType(availableTypes),
         created_at: new Date().toISOString().split('T')[0],
@@ -235,7 +241,7 @@ export default function ProductsIndex() {
         // --- Persistent Registry Logic ---
         // Save product details to the registry so we can remember its price/name even if searched away
         if (!cartRegistry[product_id]) {
-            const productInfo = products.data.find(p => p.id === product_id);
+            const productInfo = products.data.find((p: Product) => p.id === product_id);
 
             if (productInfo) {
                 setCartRegistry(prev => ({ ...prev, [product_id]: productInfo }));
@@ -257,7 +263,7 @@ export default function ProductsIndex() {
 
     const totalCartItems = cart.data.items.reduce((acc, item) => acc + item.quantity, 0);
     const totalCartPrice = cart.data.items.reduce((acc, item) => {
-        const prod = cartRegistry[item.product_id] || products.data.find(p => p.id === item.product_id);
+        const prod = cartRegistry[item.product_id] || products.data.find((p: Product) => p.id === item.product_id);
         const price = item.price ?? prod?.display_price ?? 0;
 
         return acc + (price * item.quantity);
@@ -400,7 +406,7 @@ export default function ProductsIndex() {
         category: '',
         base_price: 0,
         stock: 0,
-        tier_prices: tiers.map(t => ({ tier_id: t.id, price: 0 }))
+        tier_prices: tiers.map((t: Tier) => ({ tier_id: t.id, price: 0 }))
     });
 
     const openCreateModal = () => {
@@ -414,7 +420,7 @@ export default function ProductsIndex() {
             category: '',
             base_price: 0,
             stock: 0,
-            tier_prices: tiers.map(t => ({ tier_id: t.id, price: 0 }))
+            tier_prices: tiers.map((t: Tier) => ({ tier_id: t.id, price: 0 }))
         });
         setIsManageModalOpen(true);
     };
@@ -430,7 +436,7 @@ export default function ProductsIndex() {
             category: product.category || '',
             base_price: product.base_price || 0,
             stock: product.stock,
-            tier_prices: tiers.map(t => {
+            tier_prices: tiers.map((t: Tier) => {
                 const existingPrice = product.tier_prices?.find(tp => tp.tier_id === t.id);
 
                 return { tier_id: t.id, price: existingPrice ? existingPrice.price : 0 };
@@ -448,7 +454,7 @@ return false;
 return true;
 }
 
-        return productForm.data.tier_prices.some(tp => {
+        return productForm.data.tier_prices.some((tp: { tier_id: string; price: number }) => {
             const original = editingProduct.tier_prices?.find(otp => otp.tier_id === tp.tier_id);
 
             return parseFloat((original ? original.price : 0).toString()) !== parseFloat(tp.price.toString());
@@ -557,7 +563,7 @@ return true;
             </div>
 
             <div className={`grid gap-3 sm:gap-6 ${isBuyer ? 'grid-cols-2 lg:grid-cols-3 xl:grid-cols-4' : 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4'}`}>
-                {products.data.map((product) => (
+                {products.data.map((product: Product) => (
                     <Card key={product.id} className="group flex flex-col relative overflow-hidden transition-all hover:shadow-xl border-sidebar-border/70 dark:border-sidebar-border">
                         {canManageProducts && (
                             <div className="absolute top-2 right-2 flex gap-1 z-10 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -627,8 +633,8 @@ return true;
                                     </div>
                                     <div className="h-px bg-primary/10" />
                                     <div className="space-y-1">
-                                        {tiers.map(t => {
-                                            const tp = product.tier_prices?.find(p => p.tier_id === t.id);
+                                        {tiers.map((t: Tier) => {
+                                            const tp = product.tier_prices?.find((p: TierPrice) => p.tier_id === t.id);
 
                                             return (
                                                 <div key={t.id} className="flex justify-between text-[10px] items-center">
@@ -720,8 +726,8 @@ return true;
                             </div>
                         ) : (
                             <div className="space-y-4">
-                                {cart.data.items.map((item) => {
-                                    const prod = cartRegistry[item.product_id] || products.data.find(p => p.id === item.product_id);
+                                {cart.data.items.map((item: any) => {
+                                    const prod = cartRegistry[item.product_id] || products.data.find((p: Product) => p.id === item.product_id);
 
                                     if (!prod) {
 return null;
@@ -830,8 +836,8 @@ return null;
                                         <Package className="h-3 w-3" /> Ringkasan Pesanan ({totalCartItems} Item)
                                     </Label>
                                     <div className="max-h-48 overflow-y-auto space-y-2 pr-2 scrollbar-thin scrollbar-thumb-muted-foreground/10 hover:scrollbar-thumb-muted-foreground/20">
-                                        {cart.data.items.map((item) => {
-                                            const prod = cartRegistry[item.product_id] || products.data.find(p => p.id === item.product_id);
+                                        {cart.data.items.map((item: any) => {
+                                            const prod = cartRegistry[item.product_id] || products.data.find((p: Product) => p.id === item.product_id);
 
                                             if (!prod) {
 return null;
@@ -1042,7 +1048,7 @@ return null;
                                 <div className="h-px flex-1 bg-primary/10" />
                             </h3>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
-                                {tiers.map((tier, index) => (
+                                {tiers.map((tier: Tier, index: number) => (
                                     <div key={tier.id} className="space-y-1.5 bg-background p-3 md:p-4 rounded-xl border-2 border-transparent hover:border-primary/20 transition-all shadow-sm">
                                         <Label className="text-[9px] md:text-[10px] font-black uppercase tracking-widest text-muted-foreground">
                                             {tier.name}

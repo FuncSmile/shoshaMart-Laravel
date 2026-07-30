@@ -14,7 +14,7 @@ return new class extends Migration
         Schema::create('orders', function (Blueprint $table) {
             $table->uuid('id')->primary();
             $table->foreignUuid('buyer_id')->constrained('users')->cascadeOnDelete();
-            $table->string('order_number')->unique()->after('buyer_id');
+            $table->string('order_number')->unique();
             $table->foreignUuid('tier_id')->constrained()->cascadeOnDelete();
             $table->bigInteger('total_amount');
             $table->string('status')->default('PENDING');

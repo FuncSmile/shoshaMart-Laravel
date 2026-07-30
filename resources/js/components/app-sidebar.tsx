@@ -1,5 +1,5 @@
 import { Link, usePage, router } from '@inertiajs/react';
-import { BookOpen, FolderGit2, LayoutGrid, ShoppingBag, Users, ShoppingCart, History, CreditCard, Printer } from 'lucide-react';
+import { BookOpen, Calculator, FolderGit2, LayoutGrid, ShoppingBag, Users, ShoppingCart, History, CreditCard, Printer } from 'lucide-react';
 import { useEffect } from 'react';
 import AppLogo from '@/components/app-logo';
 import { NavFooter } from '@/components/nav-footer';
@@ -16,11 +16,11 @@ import {
     useSidebar,
 } from '@/components/ui/sidebar';
 import { dashboard } from '@/routes';
-import { index as ordersIndex, printIndex as printOrdersIndex } from '@/routes/orders/index';
+import { index as ordersIndex, printIndex as printOrdersIndex, itemSummary as ordersItemSummary } from '@/routes/orders/index';
 import { index as productsIndex } from '@/routes/products/index';
-import { index as usersIndex } from '@/routes/users/index';
-import { index as stockLogsIndex } from '@/routes/stock-logs/index';
 import { index as settlementsIndex } from '@/routes/settlements/index';
+import { index as stockLogsIndex } from '@/routes/stock-logs/index';
+import { index as usersIndex } from '@/routes/users/index';
 import type { NavItem } from '@/types';
 
 export function AppSidebar() {
@@ -73,22 +73,32 @@ export function AppSidebar() {
     }
 
     if (user?.role === 'SUPERADMIN' || user?.role === 'ADMIN_TIER') {
+        const orderNavItems: NavItem[] = [
+            {
+                title: 'Pesanan',
+                href: ordersIndex.url(),
+                icon: ShoppingCart,
+            },
+            {
+                title: 'Cetak Pesanan',
+                href: printOrdersIndex.url(),
+                icon: Printer,
+            },
+        ];
+
+        if (user?.role === 'SUPERADMIN') {
+            orderNavItems.push({
+                title: 'Rekap Barang',
+                href: ordersItemSummary.url(),
+                icon: Calculator,
+            });
+        }
+
         mainNavItems.push({
             title: 'Kelola Pesanan',
             href: ordersIndex.url(),
             icon: ShoppingCart,
-            items: [
-                {
-                    title: 'Pesanan',
-                    href: ordersIndex.url(),
-                    icon: ShoppingCart,
-                },
-                {
-                    title: 'Cetak Pesanan',
-                    href: printOrdersIndex.url(),
-                    icon: Printer,
-                },
-            ],
+            items: orderNavItems,
         });
     } else if (user?.role === 'WAREHOUSE') {
         mainNavItems.push({

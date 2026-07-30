@@ -30,9 +30,16 @@ class Order extends Model
 
     const STATUS_VERIFIED = 'verified';
 
+    /**
+     * Statuses of orders that have been accepted by an admin.
+     */
+    const ACCEPTED_STATUSES = ['APPROVED', 'paid', 'verified'];
+
     protected $casts = [
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
+        'printed_at' => 'datetime',
+        'is_printed' => 'boolean',
     ];
 
     protected static function booted()

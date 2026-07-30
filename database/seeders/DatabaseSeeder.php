@@ -2,8 +2,8 @@
 
 namespace Database\Seeders;
 
-use App\Models\Tier;
 use App\Models\Product;
+use App\Models\Tier;
 use App\Models\TierPrice;
 use App\Models\User;
 use Illuminate\Database\Seeder;
@@ -51,6 +51,7 @@ class DatabaseSeeder extends Seeder
             'sku' => 'BRS-PW-001',
             'base_price' => 65000,
             'stock' => 100,
+            'satuan_barang' => 'karung',
         ]);
 
         $productB = Product::create([
@@ -58,6 +59,7 @@ class DatabaseSeeder extends Seeder
             'sku' => 'GUL-PS-001',
             'base_price' => 14000,
             'stock' => 50,
+            'satuan_barang' => 'pcs',
         ]);
 
         // Tier Prices for L24J

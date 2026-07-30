@@ -107,6 +107,8 @@ class OrderPolicy
      */
     public function cancel(User $user, Order $order): bool
     {
+        // APPROVED orders cannot be cancelled (deliberate restriction);
+        // use destroy() instead, which restores the stock.
         if ($user->isSuperAdmin()) {
             return in_array($order->status, ['PENDING', 'UNPAID']);
         }

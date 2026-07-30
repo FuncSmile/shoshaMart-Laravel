@@ -14,11 +14,19 @@ use App\Services\DebtService;
 use App\Services\OrderService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Str;
 use Inertia\Inertia;
 
 class OrderController extends Controller
 {
+    /**
+     * Maximum orders per bulk invoice batch, to keep PDF rendering bounded.
+     */
+    public const BULK_INVOICE_LIMIT = 100;
+
     public function __construct(
         protected OrderService $orderService,
         protected DebtService $debtService
@@ -73,15 +81,15 @@ class OrderController extends Controller
         }
 
         if ($startDate) {
-            $query->where('created_at', '>=', \Illuminate\Support\Carbon::createFromFormat('Y-m-d', $startDate, 'Asia/Jakarta')->startOfDay()->utc());
+            $query->where('created_at', '>=', Carbon::createFromFormat('Y-m-d', $startDate, 'Asia/Jakarta')->startOfDay()->utc());
         }
 
         if ($endDate) {
-            $query->where('created_at', '<=', \Illuminate\Support\Carbon::createFromFormat('Y-m-d', $endDate, 'Asia/Jakarta')->endOfDay()->utc());
+            $query->where('created_at', '<=', Carbon::createFromFormat('Y-m-d', $endDate, 'Asia/Jakarta')->endOfDay()->utc());
         }
 
         if ($search) {
-            $matchingBuyerIds = \App\Models\User::where('username', 'like', "%{$search}%")
+            $matchingBuyerIds = User::where('username', 'like', "%{$search}%")
                 ->orWhere('branch_name', 'like', "%{$search}%")
                 ->pluck('id');
 
@@ -223,6 +231,8 @@ class OrderController extends Controller
             ->with(['buyer:id,username,branch_name,phone', 'items.product:id,name,sku', 'tier:id,name', 'histories.user:id,username'])
             ->findOrFail($id);
 
+        Gate::authorize('view', $order);
+
         return new OrderResource($order);
     }
 
@@ -318,61 +328,85 @@ class OrderController extends Controller
         return $pdf->stream($filename);
     }
 
+    /**
+     * Print invoices for an explicitly selected set of orders.
+     *
+     * Selection is by order id only — never by filter — so what the operator
+     * ticked on screen is exactly what comes out of the printer. Any id that
+     * cannot be printed aborts the whole batch instead of silently dropping
+     * an order from the PDF.
+     */
     public function bulkInvoice(Request $request)
     {
         if (! $request->user()->isSuperAdmin()) {
             abort(403);
         }
 
-        $buyerId = $request->input('buyer_id');
-        $jenisPesanan = $request->input('jenis_pesanan');
+        $validated = $request->validate([
+            'ids' => ['required', 'array', 'min:1', 'max:'.self::BULK_INVOICE_LIMIT],
+            'ids.*' => ['required', 'uuid', 'distinct'],
+        ], [], ['ids' => 'pesanan']);
 
-        $query = Order::where('status', 'APPROVED')
+        $ids = array_values($validated['ids']);
+
+        $orders = Order::whereIn('id', $ids)
             ->with(['buyer:id,username,branch_name,phone', 'items.product:id,name,sku', 'tier:id,name'])
-            ->latest();
+            ->get();
 
-        if ($buyerId && $buyerId !== 'ALL') {
-            $query->where('buyer_id', $buyerId);
+        if ($orders->count() !== count($ids)) {
+            return back()->withErrors([
+                'ids' => 'Sebagian pesanan yang dipilih sudah tidak tersedia (mungkin dihapus). Muat ulang halaman lalu pilih kembali.',
+            ]);
         }
 
-        if ($jenisPesanan && $jenisPesanan !== 'ALL') {
-            $query->where('jenis_pesanan', $jenisPesanan);
+        $notPrintable = $orders->reject(fn (Order $order) => in_array($order->status, Order::ACCEPTED_STATUSES, true));
+
+        if ($notPrintable->isNotEmpty()) {
+            return back()->withErrors([
+                'ids' => 'Pesanan berikut belum disetujui sehingga tidak dapat dicetak: '
+                    .$notPrintable->pluck('order_number')->implode(', ').'.',
+            ]);
         }
 
-        $orders = $query->get();
-
-        if ($orders->isEmpty()) {
-            return back()->with('error', 'Tidak ada pesanan disetujui yang ditemukan untuk filter tersebut.');
-        }
+        // Print in the exact order the operator selected them.
+        $position = array_flip($ids);
+        $orders = $orders->sortBy(fn (Order $order) => $position[$order->id])->values();
 
         $pdf = Pdf::loadView('invoices.bulk-dotmatrix', compact('orders'));
 
         // Custom paper size: 8.5 x 5.5 inch (Continuous Form Half Page)
         $pdf->setPaper([0, 0, 612, 396], 'portrait');
 
-        $date = now()->format('Y-m-d');
+        // Render before flagging anything: a failed render must never leave
+        // orders marked as printed.
+        $output = $pdf->output();
+
         $now = now();
-        $actorId = auth()->id();
-        $actorName = auth()->user()->username;
+        $actorId = $request->user()->id;
+        $actorName = $request->user()->username;
 
-        // Bulk update instead of per-order loop
-        Order::whereIn('id', $orders->pluck('id'))->update([
-            'is_printed' => true,
-            'printed_at' => $now,
+        DB::transaction(function () use ($orders, $now, $actorId, $actorName) {
+            Order::whereIn('id', $orders->pluck('id'))->update([
+                'is_printed' => true,
+                'printed_at' => $now,
+            ]);
+
+            DB::table('order_histories')->insert(
+                $orders->map(fn (Order $order) => [
+                    'id' => (string) Str::uuid(),
+                    'order_id' => $order->id,
+                    'user_id' => $actorId,
+                    'message' => "Invoice dicetak secara massal oleh {$actorName}",
+                    'created_at' => $now,
+                    'updated_at' => $now,
+                ])->all()
+            );
+        });
+
+        return response($output, 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'inline; filename="BULK-INVOICE-'.$now->format('Y-m-d').'.pdf"',
         ]);
-
-        \Illuminate\Support\Facades\DB::table('order_histories')->insert(
-            $orders->map(fn ($order) => [
-                'id' => (string) \Illuminate\Support\Str::uuid(),
-                'order_id' => $order->id,
-                'user_id' => $actorId,
-                'message' => "Invoice dicetak secara massal oleh {$actorName}",
-                'created_at' => $now,
-                'updated_at' => $now,
-            ])->toArray()
-        );
-
-        return $pdf->stream("BULK-INVOICE-{$date}.pdf");
     }
 
     public function destroy(Request $request, Order $order)
@@ -416,6 +450,8 @@ class OrderController extends Controller
 
     public function markAsPrinted(Order $order)
     {
+        Gate::authorize('generateInvoice', $order);
+
         $order->update([
             'is_printed' => true,
             'printed_at' => now(),

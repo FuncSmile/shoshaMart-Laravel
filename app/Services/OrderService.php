@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Jobs\SendWhatsAppMessage;
 use App\Models\Order;
 use App\Models\Product;
 use App\Models\User;
@@ -9,12 +10,12 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 
 class OrderService
 {
     public function __construct(
-        protected PricingService $pricingService,
-        protected FonnteService $fonnteService
+        protected PricingService $pricingService
     ) {}
 
     public function updateOrderStatus(Order $order, string $status, User $actor, ?string $reason = null): Order
@@ -29,10 +30,28 @@ class OrderService
 
             // Deduct stock on approval
             if ($status === 'APPROVED' && $oldStatus !== 'APPROVED') {
-                $order->loadMissing('items.product');
+                $order->loadMissing('items');
+
+                // Lock product rows so concurrent approvals cannot oversell
+                $products = Product::whereIn('id', $order->items->pluck('product_id')->filter())
+                    ->lockForUpdate()
+                    ->get()
+                    ->keyBy('id');
+
                 foreach ($order->items as $item) {
-                    /** @var Product $product */
-                    $product = $item->product;
+                    /** @var Product|null $product */
+                    $product = $products->get($item->product_id);
+
+                    if ($product && $product->stock < $item->quantity) {
+                        throw ValidationException::withMessages([
+                            'stock' => "Stok {$product->name} tidak mencukupi (tersisa {$product->stock}, dibutuhkan {$item->quantity}).",
+                        ]);
+                    }
+                }
+
+                foreach ($order->items as $item) {
+                    /** @var Product|null $product */
+                    $product = $products->get($item->product_id);
 
                     if ($product) {
                         $product->decrement('stock', $item->quantity);
@@ -233,7 +252,7 @@ class OrderService
                 ."Pemesan: {$order->nama_pemesan} ({$order->jenis_pesanan})\n"
                 .'Total: Rp '.number_format($order->total_amount, 0, ',', '.')."\n"
                 ."Dari: {$user->username} ({$user->branch_name})";
-            $this->fonnteService->sendMessage($adminTier->phone, $msg);
+            SendWhatsAppMessage::dispatch($adminTier->phone, $msg);
         }
     }
 
@@ -259,7 +278,7 @@ class OrderService
             ."{$dashboardUrl}\n\n"
             .'Terima kasih.';
 
-        $this->fonnteService->sendMessage($groupId, $msg);
+        SendWhatsAppMessage::dispatch($groupId, $msg);
     }
 
     public function restoreStock(Order $order, User $actor, string $reason): void

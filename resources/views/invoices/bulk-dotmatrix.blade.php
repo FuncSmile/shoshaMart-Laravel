@@ -141,7 +141,7 @@
                 @foreach($items as $item)
                 <tr>
                     <td class="text-left">{{ ($chunkIndex * 7) + $loop->iteration }}</td>
-                    <td class="text-left">{{ $item->product->name }}</td>
+                    <td class="text-left">{{ $item->product?->name ?? 'PRODUK DIHAPUS' }}</td>
                     <td class="text-right">{{ number_format($item->price, 0, ',', '.') }}</td>
                     <td class="text-center">{{ $item->quantity }}</td>
                     <td class="text-right">{{ number_format($item->subtotal, 0, ',', '.') }}</td>

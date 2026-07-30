@@ -44,8 +44,9 @@ Route::middleware(['auth'])->group(function () {
     Route::delete('/orders/{order}/force', [OrderController::class, 'forceDestroy'])->name('orders.force-destroy');
     Route::post('/orders/{order}/restore', [OrderController::class, 'restore'])->name('orders.restore');
     Route::post('/orders/{order}/restore-cancelled', [OrderController::class, 'restoreCancelled'])->name('orders.restore-cancelled');
-    Route::get('/orders-bulk/invoice', [OrderController::class, 'bulkInvoice'])->name('orders.bulk-invoice');
+    Route::post('/orders-bulk/invoice', [OrderController::class, 'bulkInvoice'])->name('orders.bulk-invoice');
     Route::get('/orders-print', [OrderController::class, 'printIndex'])->name('orders.print-index');
+    Route::get('/orders-summary', [ReportController::class, 'itemSummary'])->name('orders.item-summary');
     Route::get('/orders-report', [ReportController::class, 'exportOrders'])->name('orders.report');
     Route::resource('order-types', OrderTypeController::class)->only(['store', 'update', 'destroy']);
 
