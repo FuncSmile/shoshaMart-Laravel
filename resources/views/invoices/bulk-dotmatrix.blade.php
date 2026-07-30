@@ -5,19 +5,25 @@
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     <title>Bulk Invoice - {{ now()->format('d/m/Y') }}</title>
     <style>
+        /* Layout MUST stay byte-for-byte equivalent to invoices/dotmatrix.blade.php:
+           the dot matrix printer is aligned once for the single invoice, so bulk
+           output has to land on exactly the same paper size and offsets. */
         @page {
-            margin: 0;
-            size: 612pt 396pt;
+            /* 9.5 inch x 5.5inc */
+            size: 9.5in 5.5in;
+            margin: 8px;
         }
 
         body {
             font-family: 'Courier', monospace;
-            font-size: 9pt;
+            font-size: 12pt;
             margin: 0;
             padding: 0;
             color: #000;
         }
 
+        /* Mirrors the single invoice's `body { margin: 0.3cm }` — applied per page
+           here so every invoice in the batch starts at the same offset. */
         .invoice-page {
             padding: 0.3cm;
             position: relative;
@@ -31,16 +37,15 @@
 
         .header {
             text-align: center;
-            margin-bottom: 5px;
+            margin-bottom: 0px;
             border-bottom: 1px dashed #000;
             padding-bottom: 5px;
         }
 
-        /* ... existing styles ... */
         .info-table {
             width: 100%;
-            margin-bottom: 5px;
-            font-size: 9pt;
+            margin-bottom: 10px;
+            font-size: 10pt;
         }
 
         .info-table td {
@@ -50,8 +55,8 @@
         .items-table {
             width: 100%;
             border-collapse: collapse;
-            margin-bottom: 5px;
-            font-size: 9.5pt;
+            margin-bottom: 10px;
+            font-size: 11pt;
         }
 
         .items-table th {
@@ -77,13 +82,13 @@
         }
 
         .footer {
-            margin-top: 10px;
+            margin-top: 20px;
             font-size: 8pt;
         }
 
         .signatures {
             width: 100%;
-            margin-top: 5px;
+            margin-top: 15px;
             font-size: 9pt;
         }
 
@@ -106,7 +111,7 @@
         <div class="header">
             <h2 style="margin: 0; letter-spacing: 2px;">SHOSHA MART</h2>
             @if($totalChunks > 1)
-            <div style="font-size: 8pt; margin-top: 5px;">Invoice {{ $order->order_number }} - Hal {{ $chunkIndex + 1 }} dari {{ $totalChunks }}</div>
+            <div style="font-size: 8pt; margin-top: 5px;">Halaman {{ $chunkIndex + 1 }} dari {{ $totalChunks }}</div>
             @endif
         </div>
 
@@ -158,7 +163,7 @@
             @else
             <tfoot>
                 <tr>
-                    <td colspan="5" class="text-center" style="border-top: 1px dashed #000; padding-top: 10px; font-size: 8pt; font-style: italic;">
+                    <td colspan="5" class="text-center" style="border-top: 1px dashed #000; padding-top: 10px; font-size: 8pt;">
                         Bersambung ke halaman berikutnya...
                     </td>
                 </tr>
