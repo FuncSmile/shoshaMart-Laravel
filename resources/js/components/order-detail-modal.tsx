@@ -72,11 +72,12 @@ interface AvailableProduct {
     base_price: number;
 }
 
-export function OrderDetailSheet({ open, onOpenChange, orderId, onReject, availableTypes = [] }: {
+export function OrderDetailSheet({ open, onOpenChange, orderId, onReject, onApprove, availableTypes = [] }: {
     open: boolean,
     onOpenChange: (val: boolean) => void,
     orderId: string | null,
     onReject?: (order: any) => void,
+    onApprove?: (order: any) => void,
     availableTypes?: string[]
 }) {
     const [order, setOrder] = useState<Order | null>(null);
@@ -225,7 +226,16 @@ export function OrderDetailSheet({ open, onOpenChange, orderId, onReject, availa
     };
 
     const handleApprove = () => {
-        if (!order || !confirm('Setujui pesanan ini?')) {
+        if (!order) {
+            return;
+        }
+
+        // Delegate to the parent so approval goes through the shared confirmation
+        // dialog, which surfaces any stock that would go negative.
+        if (onApprove) {
+            onOpenChange(false);
+            onApprove(order);
+
             return;
         }
 

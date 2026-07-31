@@ -15,6 +15,12 @@ import { Pagination, SearchInput } from '@/components/ui/pagination';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { index as ordersIndex, approve as ordersApprove, reject as ordersReject, cancel as ordersCancel, destroy as ordersDestroy, restore as ordersRestore, restoreCancelled as ordersRestoreCancelled } from '@/routes/orders/index';
 
+interface StockWarning {
+    product_name: string;
+    stock: number;
+    quantity: number;
+}
+
 interface Order {
     id: string;
     order_number: string;
@@ -39,10 +45,11 @@ interface Order {
     is_printed: boolean;
     is_trashed?: boolean;
     deleted_at?: string;
+    stock_warnings?: StockWarning[];
 }
 
 export default function OrderIndex() {
-    const { orders, auth_role, filters, buyers, tiers, availableTypes, orderTypes } = usePage().props as any;
+    const { orders, auth_role, filters, buyers, tiers, availableTypes, orderTypes, flash, errors: pageErrors } = usePage().props as any;
     const [searchQuery, setSearchQuery] = useState(filters.search || '');
     const [statusFilter, setStatusFilter] = useState(filters.status || 'ALL');
     const [jenisPesananFilter, setJenisPesananFilter] = useState(filters.jenis_pesanan || 'ALL');
@@ -51,6 +58,8 @@ export default function OrderIndex() {
     const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
     const [isDetailOpen, setIsDetailOpen] = useState(false);
     const [rejectingOrder, setRejectingOrder] = useState<Order | null>(null);
+    const [approvingOrder, setApprovingOrder] = useState<Order | null>(null);
+    const [isApproving, setIsApproving] = useState(false);
     const [deletingOrder, setDeletingOrder] = useState<Order | null>(null);
     const [isReportModalOpen, setIsReportModalOpen] = useState(false);
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -130,10 +139,17 @@ export default function OrderIndex() {
         }
     };
 
-    const handleApprove = (id: string) => {
-        if (confirm('Setujui pesanan ini?')) {
-            router.post(ordersApprove.url(id));
-        }
+    const confirmApprove = () => {
+        if (!approvingOrder) return;
+
+        setIsApproving(true);
+        router.post(ordersApprove.url(approvingOrder.id), {}, {
+            preserveScroll: true,
+            onFinish: () => {
+                setIsApproving(false);
+                setApprovingOrder(null);
+            },
+        });
     };
 
     const handleCancel = (id: string) => {
@@ -220,6 +236,25 @@ export default function OrderIndex() {
     return (
         <div className="flex flex-1 flex-col gap-8 p-6 md:p-8 lg:p-10 w-full max-w-7xl mx-auto animate-in fade-in slide-in-from-bottom-4 duration-700">
             <Head title="Manajemen Pesanan" />
+
+            {/* Feedback banner: without this, failed actions look like nothing happened */}
+            {flash?.message && (
+                <div className="flex items-start gap-3 rounded-2xl border-2 border-emerald-500/20 bg-emerald-500/10 px-5 py-4 text-emerald-700 dark:text-emerald-400">
+                    <CheckCircle className="h-5 w-5 shrink-0 mt-0.5" />
+                    <p className="font-bold text-sm">{flash.message}</p>
+                </div>
+            )}
+            {(flash?.error || (pageErrors && Object.keys(pageErrors).length > 0)) && (
+                <div className="flex items-start gap-3 rounded-2xl border-2 border-destructive/20 bg-destructive/10 px-5 py-4 text-destructive">
+                    <AlertCircle className="h-5 w-5 shrink-0 mt-0.5" />
+                    <div className="space-y-1">
+                        {flash?.error && <p className="font-bold text-sm">{flash.error}</p>}
+                        {pageErrors && Object.values(pageErrors).map((msg, i) => (
+                            <p key={i} className="font-bold text-sm">{String(msg)}</p>
+                        ))}
+                    </div>
+                </div>
+            )}
 
             {/* Header Section */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
@@ -465,7 +500,7 @@ export default function OrderIndex() {
                                                                         <Button
                                                                             variant="default"
                                                                             size="icon"
-                                                                            onClick={() => handleApprove(order.id)}
+                                                                            onClick={() => setApprovingOrder(order)}
                                                                             className="rounded-full bg-emerald-500 hover:bg-emerald-600 h-8 w-8 shadow-lg shadow-emerald-500/20"
                                                                         >
                                                                             <CheckCircle className="h-4 w-4" />
@@ -551,7 +586,61 @@ export default function OrderIndex() {
                 onReject={(order) => {
                     setIsDetailOpen(false); setRejectingOrder(order);
                 }}
+                onApprove={(order) => setApprovingOrder(order)}
             />
+
+            {/* Approval Dialog — warns when approving will push stock negative */}
+            <Dialog open={!!approvingOrder} onOpenChange={(val) => !val && !isApproving && setApprovingOrder(null)}>
+                <DialogContent className="rounded-3xl">
+                    <DialogHeader>
+                        <DialogTitle className="text-2xl font-black italic text-emerald-600">Setujui Pesanan</DialogTitle>
+                        <DialogDescription className="font-medium">
+                            Pesanan #{approvingOrder?.order_number} dari {approvingOrder?.buyer.username}. Stok produk akan langsung dipotong setelah disetujui.
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    {approvingOrder?.stock_warnings && approvingOrder.stock_warnings.length > 0 && (
+                        <div className="rounded-2xl border-2 border-amber-500/30 bg-amber-500/10 p-5 space-y-3">
+                            <div className="flex items-center gap-2 text-amber-700 dark:text-amber-400">
+                                <AlertCircle className="h-5 w-5 shrink-0" />
+                                <p className="font-black italic uppercase text-sm tracking-wide">Stok Tidak Mencukupi</p>
+                            </div>
+                            <p className="text-sm font-medium text-muted-foreground">
+                                Produk berikut akan menjadi stok minus jika pesanan ini disetujui:
+                            </p>
+                            <ul className="space-y-1.5">
+                                {approvingOrder.stock_warnings.map((warning, i) => (
+                                    <li key={i} className="text-sm font-bold flex items-center justify-between gap-4">
+                                        <span>{warning.product_name}</span>
+                                        <span className="text-destructive whitespace-nowrap">
+                                            {warning.stock} &minus; {warning.quantity} = {warning.stock - warning.quantity}
+                                        </span>
+                                    </li>
+                                ))}
+                            </ul>
+                        </div>
+                    )}
+
+                    <DialogFooter>
+                        <Button
+                            variant="outline"
+                            className="rounded-full font-black uppercase"
+                            onClick={() => setApprovingOrder(null)}
+                            disabled={isApproving}
+                        >
+                            Batal
+                        </Button>
+                        <Button
+                            className="rounded-full bg-emerald-500 hover:bg-emerald-600 font-black uppercase"
+                            onClick={confirmApprove}
+                            disabled={isApproving}
+                        >
+                            {isApproving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <CheckCircle className="h-4 w-4 mr-2" />}
+                            {approvingOrder?.stock_warnings?.length ? 'Setujui Walau Stok Minus' : 'Setujui'}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
 
             {/* Rejection Dialog */}
             <Dialog open={!!rejectingOrder} onOpenChange={(val) => !val && setRejectingOrder(null)}>

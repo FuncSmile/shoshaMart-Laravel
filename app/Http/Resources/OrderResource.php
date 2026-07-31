@@ -42,6 +42,16 @@ class OrderResource extends JsonResource
                 'name' => $this->tier->name,
             ],
             'items' => OrderItemResource::collection($this->whenLoaded('items')),
+            // Items whose stock would go negative on approval, so the UI can warn first.
+            'stock_warnings' => $this->whenLoaded('items', fn () => $this->items
+                ->filter(fn ($item) => $item->product && (int) $item->product->stock < (int) $item->quantity)
+                ->map(fn ($item) => [
+                    'product_name' => $item->product->name,
+                    'stock' => (int) $item->product->stock,
+                    'quantity' => (int) $item->quantity,
+                ])
+                ->values()
+            ),
             'history_logs' => OrderHistoryResource::collection($this->whenLoaded('histories')),
             'permissions' => [
                 'can_edit' => $request->user()?->can('update', $this->resource),

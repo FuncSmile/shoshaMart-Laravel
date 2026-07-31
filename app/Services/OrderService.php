@@ -10,7 +10,6 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
-use Illuminate\Validation\ValidationException;
 
 class OrderService
 {
@@ -22,6 +21,7 @@ class OrderService
     {
         return DB::transaction(function () use ($order, $status, $actor, $reason) {
             $oldStatus = $order->status;
+            $shortages = [];
 
             $order->update([
                 'status' => $status,
@@ -32,7 +32,7 @@ class OrderService
             if ($status === 'APPROVED' && $oldStatus !== 'APPROVED') {
                 $order->loadMissing('items');
 
-                // Lock product rows so concurrent approvals cannot oversell
+                // Lock product rows so concurrent approvals stay consistent
                 $products = Product::whereIn('id', $order->items->pluck('product_id')->filter())
                     ->lockForUpdate()
                     ->get()
@@ -42,26 +42,24 @@ class OrderService
                     /** @var Product|null $product */
                     $product = $products->get($item->product_id);
 
-                    if ($product && $product->stock < $item->quantity) {
-                        throw ValidationException::withMessages([
-                            'stock' => "Stok {$product->name} tidak mencukupi (tersisa {$product->stock}, dibutuhkan {$item->quantity}).",
-                        ]);
+                    if (! $product) {
+                        continue;
                     }
-                }
 
-                foreach ($order->items as $item) {
-                    /** @var Product|null $product */
-                    $product = $products->get($item->product_id);
-
-                    if ($product) {
-                        $product->decrement('stock', $item->quantity);
-                        $product->stockLogs()->create([
-                            'user_id' => $actor->id,
-                            'amount' => -$item->quantity,
-                            'type' => 'sub',
-                            'reason' => "Persetujuan Pesanan #{$order->order_number}",
-                        ]);
+                    // Approval is never blocked by stock: the admin confirms the shortfall
+                    // in the UI beforehand. The shortfall is recorded on the order history
+                    // so a negative stock level is always traceable back to an approval.
+                    if ($product->stock < $item->quantity) {
+                        $shortages[] = "{$product->name} (stok {$product->stock}, dibutuhkan {$item->quantity})";
                     }
+
+                    $product->decrement('stock', $item->quantity);
+                    $product->stockLogs()->create([
+                        'user_id' => $actor->id,
+                        'amount' => -$item->quantity,
+                        'type' => 'sub',
+                        'reason' => "Persetujuan Pesanan #{$order->order_number}",
+                    ]);
                 }
             }
 
@@ -80,6 +78,9 @@ class OrderService
             $message = "{$actor->username} telah {$action} pesanan {$order->order_number}";
             if ($reason) {
                 $message .= " dengan alasan: {$reason}";
+            }
+            if ($shortages) {
+                $message .= ' (stok minus: '.implode(', ', $shortages).')';
             }
 
             $order->histories()->create([

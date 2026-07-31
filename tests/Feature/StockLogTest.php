@@ -82,13 +82,42 @@ test('deleting an approved order restores stock and creates audit log', function
     ]);
 });
 
-test('approving an order with insufficient stock is rejected', function () {
+test('approving an order with insufficient stock succeeds and drives stock negative', function () {
     $this->product->update(['stock' => 5]);
 
     $this->actingAs($this->admin)
         ->post(route('orders.approve', $this->order->id))
-        ->assertSessionHasErrors('stock');
+        ->assertRedirect()
+        ->assertSessionHasNoErrors();
 
-    expect($this->order->fresh()->status)->toBe('PENDING');
-    expect($this->product->fresh()->stock)->toBe(5);
+    expect($this->order->fresh()->status)->toBe('APPROVED');
+    expect($this->product->fresh()->stock)->toBe(-5);
+});
+
+test('approving with insufficient stock records the shortfall in the order history', function () {
+    $this->product->update(['stock' => 5]);
+
+    $this->actingAs($this->admin)
+        ->post(route('orders.approve', $this->order->id));
+
+    expect($this->order->histories()->latest()->first()->message)
+        ->toContain('stok minus: Test Product (stok 5, dibutuhkan 10)');
+});
+
+test('the orders page exposes stock warnings so the UI can confirm before approving', function () {
+    $this->product->update(['stock' => 5]);
+
+    $this->actingAs($this->admin)
+        ->get(route('orders.index'))
+        ->assertInertia(fn ($page) => $page
+            ->where('orders.data.0.stock_warnings.0.product_name', 'Test Product')
+            ->where('orders.data.0.stock_warnings.0.stock', 5)
+            ->where('orders.data.0.stock_warnings.0.quantity', 10)
+        );
+});
+
+test('an order with enough stock reports no stock warnings', function () {
+    $this->actingAs($this->admin)
+        ->get(route('orders.index'))
+        ->assertInertia(fn ($page) => $page->where('orders.data.0.stock_warnings', []));
 });

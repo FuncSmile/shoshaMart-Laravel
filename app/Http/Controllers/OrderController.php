@@ -50,6 +50,9 @@ class OrderController extends Controller
             ->with([
                 'buyer:id,username,branch_name,phone',
                 'tier:id,name',
+                // Needed for the stock_warnings shown before an admin approves an order.
+                'items:id,order_id,product_id,quantity,price,subtotal',
+                'items.product:id,name,sku,stock',
             ]);
 
         if ($user->role === 'SUPERADMIN' || $user->role === 'ADMIN_TIER') {
@@ -228,7 +231,7 @@ class OrderController extends Controller
     public function show(string $id)
     {
         $order = Order::withTrashed()
-            ->with(['buyer:id,username,branch_name,phone', 'items.product:id,name,sku', 'tier:id,name', 'histories.user:id,username'])
+            ->with(['buyer:id,username,branch_name,phone', 'items.product:id,name,sku,stock', 'tier:id,name', 'histories.user:id,username'])
             ->findOrFail($id);
 
         Gate::authorize('view', $order);

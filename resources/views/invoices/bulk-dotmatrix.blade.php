@@ -17,8 +17,7 @@
         body {
             font-family: 'Courier', monospace;
             font-size: 12pt;
-            margin: 0;
-            padding: 0;
+            margin: 0.3cm;
             color: #000;
         }
 
@@ -37,7 +36,8 @@
 
         .header {
             text-align: center;
-            margin-bottom: 0px;
+            margin-top: 8px;
+            margin-bottom: 10px;
             border-bottom: 1px dashed #000;
             padding-bottom: 5px;
         }
