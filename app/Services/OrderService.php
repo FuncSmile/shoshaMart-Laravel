@@ -248,19 +248,32 @@ class OrderService
             ->where('tier_id', $user->tier_id)
             ->first();
 
-        if ($adminTier) {
-            $msg = "Pesanan Baru: {$order->id}\n"
-                ."Pemesan: {$order->nama_pemesan} ({$order->jenis_pesanan})\n"
-                .'Total: Rp '.number_format($order->total_amount, 0, ',', '.')."\n"
-                ."Dari: {$user->username} ({$user->branch_name})";
-            SendWhatsAppMessage::dispatch($adminTier->phone, $msg);
+        if (! $adminTier) {
+            Log::warning("No ADMIN_TIER user found for tier {$user->tier_id}, order {$order->order_number} notification skipped.");
+
+            return;
         }
+
+        if (blank($adminTier->phone)) {
+            Log::warning("ADMIN_TIER {$adminTier->username} has no phone number, order {$order->order_number} notification skipped.");
+
+            return;
+        }
+
+        $msg = "Pesanan Baru: #{$order->order_number}\n"
+            ."Pemesan: {$order->nama_pemesan} ({$order->jenis_pesanan})\n"
+            .'Total: Rp '.number_format($order->total_amount, 0, ',', '.')."\n"
+            ."Dari: {$user->username} ({$user->branch_name})";
+
+        SendWhatsAppMessage::dispatch($adminTier->phone, $msg);
     }
 
     protected function notifyAdminGroup(Order $order, User $user): void
     {
         $groupId = config('services.fonnte.group_id');
-        if (! $groupId) {
+        if (blank($groupId)) {
+            Log::warning("FONNTE_GROUP_ID is not configured, group notification for order {$order->order_number} skipped.");
+
             return;
         }
 

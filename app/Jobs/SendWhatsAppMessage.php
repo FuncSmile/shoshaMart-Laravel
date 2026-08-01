@@ -27,6 +27,6 @@ class SendWhatsAppMessage implements ShouldQueue
 
     public function failed(?\Throwable $exception): void
     {
-        Log::warning("Fonnte notification to {$this->target} failed permanently: ".($exception?->getMessage() ?? 'unknown error'));
+        Log::error("Fonnte notification to {$this->target} failed permanently after {$this->tries} attempts: ".($exception?->getMessage() ?? 'unknown error'));
     }
 }
